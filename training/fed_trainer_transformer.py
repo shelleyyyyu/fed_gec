@@ -25,5 +25,6 @@ class FedTransformerTrainer(ModelTrainer):
         pass
 
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None):
+        print('test on the server', self.model_trainer)
         self.model_trainer.eval_model(device=device)
         return True
