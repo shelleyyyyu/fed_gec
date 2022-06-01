@@ -107,6 +107,7 @@ class FedOptAggregator(object):
         return self.get_global_model_params()
 
     def set_model_global_grads(self, new_state):
+        print('----- set_model_global_grads -----')
         new_model = copy.deepcopy(self.trainer.model)
         new_model.load_state_dict(new_state)
         with torch.no_grad():
