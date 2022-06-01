@@ -147,7 +147,7 @@ if __name__ == "__main__":
         client_trainer.test_dl = test_data_global
     args.client_num_in_total = num_clients
 
-    # fl_algorithm = get_fl_algorithm_initializer(args.fl_algorithm)
-    # fl_algorithm(process_id, worker_number, device, comm, client_model, train_data_num,
-    #              train_data_global, test_data_global, train_data_local_num_dict,
-    #              train_data_local_dict, test_data_local_dict, args, fed_trainer)
+    fl_algorithm = get_fl_algorithm_initializer(args.fl_algorithm)
+    fl_algorithm(process_id, worker_number, device, comm, client_model, train_data_num,
+                 train_data_global, test_data_global, train_data_local_num_dict,
+                 train_data_local_dict, test_data_local_dict, args, fed_trainer)
