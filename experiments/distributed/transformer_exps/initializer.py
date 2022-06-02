@@ -14,6 +14,9 @@ from transformers import (
     BartConfig, 
     BartForConditionalGeneration, 
     BartTokenizer,
+    MBartConfig,
+    MBartForConditionalGeneration,
+    MBartTokenizer
 )
 
 from FedML.fedml_api.distributed.fedavg.FedAvgAPI import FedML_FedAvg_distributed
@@ -54,6 +57,7 @@ def create_model(args, formulation="classification"):
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
         },
         "seq2seq": {
+            "mbart": (MBartConfig, MBartForConditionalGenerationM, MBartTokenizer),
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
         }
     }
