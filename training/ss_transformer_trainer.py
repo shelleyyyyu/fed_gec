@@ -22,8 +22,8 @@ from transformers import (
 )
 from evaluation.evaluate import *
 # import bleurt 
-
-
+from evaluation.e_modules.tokenizer import Tokenizer
+from evaluation.e_modules.annotator import Annotator
 
 class Seq2SeqTrainer:
     def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None):
@@ -42,6 +42,9 @@ class Seq2SeqTrainer:
 
         # training results
         self.results = {}
+        self.tokenizer = Tokenizer('word', self.device)
+        global annotator, sentence_to_tokenized
+        self.annotator = Annotator.create_default('word', 'all')
         
 
     def set_data(self, train_dl, test_dl=None):
@@ -264,8 +267,8 @@ class Seq2SeqTrainer:
                 # hyp_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你就会尝到泰国人死爱的味道。']]
                 # ref_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你会尝到泰国人死爱的味道。']]
 
-                hyp_annotations = get_edits(hyp_input_sents, granularity='word', multi_cheapest_strategy='all', batch_size=128, device=0)
-                ref_annotations = get_edits(ref_input_sents, granularity='word', multi_cheapest_strategy='all', batch_size=128, device=0)
+                hyp_annotations = get_edits(self.tokenizer, self.annotator, hyp_input_sents, batch_size=128)
+                ref_annotations = get_edits(self.tokenizer, self.annotator, ref_input_sents, batch_size=128)
                 result = calculate_score(hyp_annotations, ref_annotations)
                 print(result)
                 f0_5_score += result['f0_5']

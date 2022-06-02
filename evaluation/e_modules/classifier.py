@@ -1,4 +1,4 @@
-from utils.char_smi import CharFuncs
+from evaluation.e_utils.char_smi import CharFuncs
 from collections import namedtuple
 from pypinyin import pinyin, Style
 import os
@@ -11,7 +11,7 @@ Correction = namedtuple(
     ],
 ) 
 file_path = os.path.dirname(os.path.abspath(__file__))
-char_smi = CharFuncs(os.path.join(file_path.replace("modules", ""), 'data/char_meta.txt'))
+char_smi = CharFuncs(os.path.join(file_path.replace("e_modules", "data"), 'char_meta.txt'))
 
 def check_spell_error(src_span: str,
                       tgt_span: str,

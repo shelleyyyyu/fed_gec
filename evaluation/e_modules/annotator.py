@@ -1,7 +1,7 @@
 from typing import List, Tuple
-from modules.alignment import read_cilin, read_confusion, Alignment
-from modules.merger import Merger
-from modules.classifier import Classifier
+from evaluation.e_modules.alignment import read_cilin, read_confusion, Alignment
+from evaluation.e_modules.merger import Merger
+from evaluation.e_modules.classifier import Classifier
 
 class Annotator:
     def __init__(self,

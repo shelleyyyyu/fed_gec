@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Tuple, Dict
-from modules.tokenizer import Tokenizer
+from evaluation.e_modules.tokenizer import Tokenizer
 import os
 from string import punctuation
 
@@ -22,7 +22,7 @@ def read_cilin():
     Cilin 詞林 is a thesaurus with semantic information
     """
     # TODO -- fix this path
-    lines = open("./data/cilin.txt", "r",
+    lines = open("./evaluation/data/cilin.txt", "r",
                  encoding="gbk").read().strip().split("\n")
     semantic_dict = {}
     semantic_classes = {}
@@ -40,7 +40,7 @@ def read_cilin():
 
 def read_confusion():
     confusion_dict = {}
-    with open("./data/confusion_dict.txt", "r", encoding="utf-8") as f:
+    with open("./evaluation/data/confusion_dict.txt", "r", encoding="utf-8") as f:
         for line in f:
             li = line.rstrip('\n').split(" ")
             confusion_dict[li[0]] = li[1:]

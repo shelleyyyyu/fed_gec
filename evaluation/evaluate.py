@@ -1,22 +1,8 @@
 import os
-from modules.annotator import Annotator
-from modules.tokenizer import Tokenizer
-import argparse
-from collections import Counter
 from tqdm import tqdm
-import torch
-from collections import defaultdict
-from multiprocessing import Pool
-from opencc import OpenCC
-from compare_m2_for_evaluation import *
-
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-annotator, sentence_to_tokenized = None, None
-cc = OpenCC("t2s")
-
-
-def annotate(sent_list):
+def annotate(sent_list, annotator, sentence_to_tokenized):
     """
     :param line:
     :return:
@@ -38,12 +24,8 @@ def annotate(sent_list):
     return output_str
 
 
-def get_edits(input_sents, granularity='char', multi_cheapest_strategy='first', batch_size=128, device=0):
-    tokenizer = Tokenizer(granularity, device)
-    global annotator, sentence_to_tokenized
-    annotator = Annotator.create_default(granularity, multi_cheapest_strategy)
+def get_edits(tokenizer, annotator, input_sents, batch_size=128):
     lines = input_sents
-
     annotations = []
     count = 0
     sentence_set = set()
@@ -67,7 +49,7 @@ def get_edits(input_sents, granularity='char', multi_cheapest_strategy='first', 
             sentence_to_tokenized[s] = r  # Get tokenization map.
 
     for line in tqdm(lines):
-        ret = annotate(line)
+        ret = annotate(line, annotator, sentence_to_tokenized)
         annotations.append(ret.strip())
 
     return annotations
@@ -80,7 +62,8 @@ def get_edits(input_sents, granularity='char', multi_cheapest_strategy='first', 
 # # multi_cheapest_strategy = "first" #, "all"
 # # batch_size = 128 dev_batch_size
 # # device = 0
-# hyp_annotations = get_edits(hyp_input_sents, granularity='word', multi_cheapest_strategy='all', batch_size=128, device=0)
-# ref_annotations = get_edits(ref_input_sents, granularity='word', multi_cheapest_strategy='all', batch_size=128, device=0)
+#
+# hyp_annotations = get_edits(hyp_input_sents, batch_size=128)
+# ref_annotations = get_edits(ref_input_sents, batch_size=128)
 # result = calculate_score(hyp_annotations, ref_annotations)
 # print(result)
