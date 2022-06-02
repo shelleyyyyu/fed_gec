@@ -249,18 +249,18 @@ class Seq2SeqTrainer:
                 tmp_eval_loss = outputs[0]
                 summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
                                                   max_length=self.args.max_length, early_stopping=True)
-                # input_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
-                #                                                  clean_up_tokenization_spaces=False).strip()) for g in
-                #               inputs['input_ids']]
-                # hyp_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
-                #                                                clean_up_tokenization_spaces=False).strip()) for g in
-                #             summary_ids]
-                # ref_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
-                #                                                clean_up_tokenization_spaces=False).strip()) for g in
-                #             inputs['decoder_input_ids']]
-                wrong_tag_list.extend(inputs['input_ids'])
-                pred_tag_list.extend(summary_ids)
-                gold_tag_list.extend(inputs['decoder_input_ids'])
+                input_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
+                                                                 clean_up_tokenization_spaces=False).strip()) for g in
+                              inputs['input_ids']]
+                hyp_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
+                                                               clean_up_tokenization_spaces=False).strip()) for g in
+                            summary_ids]
+                ref_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
+                                                               clean_up_tokenization_spaces=False).strip()) for g in
+                            inputs['decoder_input_ids']]
+                wrong_tag_list.extend(input_list)
+                pred_tag_list.extend(hyp_list)
+                gold_tag_list.extend(ref_list)
 
                 recall, precision, f0_5 = evaluate_gec(wrong_tag_list, gold_tag_list, pred_tag_list)
                 f0_5_score += f0_5
