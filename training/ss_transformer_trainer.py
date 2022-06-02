@@ -255,6 +255,11 @@ class Seq2SeqTrainer:
                 pred_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in summary_ids]
                 gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
 
+                if i == 0:
+                    logging.info('----- Evaluation Examples -----')
+                    logging.info(('wrong_tag_list', wrong_tag_list[0])
+                    logging.info(('gold_tag_list', gold_tag_list[0])
+                    logging.info(('pred_tag_list', pred_tag_list[0])
                 # wrong_tag_list[['但其实同意他的意见，但我不爱复习。']]
                 # gold_tag_list[['其实虽然同意他的意见，但我不爱复习。']]
                 # pred_tag_list[['但其实同意他的意�']]
@@ -270,7 +275,6 @@ class Seq2SeqTrainer:
                 hyp_annotations = get_edits(self.tokenizer, self.annotator, hyp_input_sents, batch_size=128)
                 ref_annotations = get_edits(self.tokenizer, self.annotator, ref_input_sents, batch_size=128)
                 result = calculate_score(hyp_annotations, ref_annotations)
-                print(result)
                 f0_5_score += result['f0_5']
                 precision_score += result['precision']
                 recall_score += result['recall']
