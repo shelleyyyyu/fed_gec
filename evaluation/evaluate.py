@@ -12,12 +12,15 @@ def annotate(sent_list, annotator, sentence_to_tokenized):
     for idx, target in enumerate(sent_list[1:]):
         try:
             target = "".join(target.strip().split())
-            source_tokenized, target_tokenized = sentence_to_tokenized[source], sentence_to_tokenized[target]
-            out, cors = annotator(source_tokenized, target_tokenized, idx)
-            if idx == 0:
-                output_str += "".join(out[:-1])
+            if source in sentence_to_tokenized and target in sentence_to_tokenized:
+                source_tokenized, target_tokenized = sentence_to_tokenized[source], sentence_to_tokenized[target]
+                out, cors = annotator(source_tokenized, target_tokenized, idx)
+                if idx == 0:
+                    output_str += "".join(out[:-1])
+                else:
+                    output_str += "".join(out[1:-1])
             else:
-                output_str += "".join(out[1:-1])
+                print(source, target)
         except Exception:
             raise Exception
     return output_str
