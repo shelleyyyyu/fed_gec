@@ -1,5 +1,4 @@
 import os
-from tqdm import tqdm
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 def annotate(sent_list, annotator, sentence_to_tokenized):
@@ -34,7 +33,7 @@ def get_edits(tokenizer, annotator, input_sents, batch_size=128):
         for idx, sent in enumerate(sent_list):
             sentence_set.add(sent.strip())
     batch = []
-    for sent in tqdm(sentence_set):
+    for sent in sentence_set:
         count += 1
         if sent:
             batch.append(sent)
@@ -48,7 +47,7 @@ def get_edits(tokenizer, annotator, input_sents, batch_size=128):
         for s, r in zip(batch, results):
             sentence_to_tokenized[s] = r  # Get tokenization map.
 
-    for line in tqdm(lines):
+    for line in lines:
         ret = annotate(line, annotator, sentence_to_tokenized)
         annotations.append(ret.strip())
 
