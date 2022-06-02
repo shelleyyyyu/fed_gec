@@ -240,18 +240,14 @@ class BaseDataManager(ABC):
 
     def _load_federated_data_local(self):
         data_file = h5py.File(self.args.data_file_path, "r", swmr=True)
-        print(data_file)
         partition_file = h5py.File(
             self.args.partition_file_path, "r", swmr=True)
-        print(partition_file)
         partition_method = self.args.partition_method
-        print(partition_method)
 
         train_data_local_dict = {}
         test_data_local_dict = {}
         train_data_local_num_dict = {}
         self.client_index_list = list(set(self.client_index_list))
-        print('self.client_index_list', self.client_index_list)
         logging.info("self.client_index_list = " + str(self.client_index_list))
 
         for client_idx in self.client_index_list:
@@ -301,6 +297,13 @@ class BaseDataManager(ABC):
                                     num_workers=0,
                                     pin_memory=True,
                                     drop_last=False)
+
+            # print('train_loader', train_loader)
+            # print('len(train_loader)', len(train_loader))
+            # print('train_loader examples', train_loader.examples)
+            # print(train_loader.examples[0].input_text)
+            # print(train_loader.examples[0].target_text)
+            # exit()
             train_data_local_dict[client_idx] = train_loader
             test_data_local_dict[client_idx] = test_loader
             train_data_local_num_dict[client_idx] = len(train_loader)

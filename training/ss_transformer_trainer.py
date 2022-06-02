@@ -20,7 +20,7 @@ from transformers import (
     AdamW,
     get_linear_schedule_with_warmup,
 )
-
+from evaluation.evluation import evaluate_gec
 # import bleurt 
 
 
@@ -150,7 +150,10 @@ class Seq2SeqTrainer:
             for batch_idx, batch in enumerate(self.train_dl):
                 self.model.train()
                 inputs = self._get_inputs_dict(batch)
-
+                # print('inputs', inputs)
+                # inputs {'input_ids': tensor([[    0, 47876,  3602, 47842,     2]]), 'attention_mask': tensor([[1, 1, 1, 1, 1]]), 'decoder_input_ids': tensor([[    0, 47876,  3602, 47842]]), 'labels': tensor([[47876,  3602, 47842,     2]])}
+                # print('self.model', self.model)
+                # self.model BartForConditionalGeneration
                 if args.fp16:
                     with amp.autocast():
                         outputs = self.model(**inputs)
@@ -214,8 +217,11 @@ class Seq2SeqTrainer:
         results = {}
 
         eval_loss = 0.0
-        rouge_score = 0.0
-        
+        f0_5_score = 0.0
+        precision_score = 0.0
+        recall_score = 0.0
+        wrong_tag_list, gold_tag_list, pred_tag_list = [], [], []
+
         # bluert_score = 0.0
         # bluert_checkpoint = "~/fednlp_data/bleurt-base-128"
         # bleurt_scorer = bleurt.score.BleurtScorer(bluert_checkpoint)
@@ -241,14 +247,25 @@ class Seq2SeqTrainer:
             with torch.no_grad(): 
                 outputs = self.model(**inputs)
                 tmp_eval_loss = outputs[0]
-                summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams, max_length=self.args.max_length, early_stopping=True)
-                hyp_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in summary_ids]
-                ref_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
-                rouge = Rouge()
-                refs = {idx: [line] for (idx, line) in enumerate(ref_list)}
-                hyps = {idx: [line] for (idx, line) in enumerate(hyp_list)}
-                res = rouge.compute_score(refs, hyps)
-                rouge_score += res[0]
+                summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
+                                                  max_length=self.args.max_length, early_stopping=True)
+                input_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
+                                                                 clean_up_tokenization_spaces=False).strip()) for g in
+                              inputs['input_ids']]
+                hyp_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
+                                                               clean_up_tokenization_spaces=False).strip()) for g in
+                            summary_ids]
+                ref_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
+                                                               clean_up_tokenization_spaces=False).strip()) for g in
+                            inputs['decoder_input_ids']]
+                wrong_tag_list.extend(input_list)
+                pred_tag_list.extend(hyp_list)
+                gold_tag_list.extend(ref_list)
+
+                recall, precision, f0_5 = evaluate_gec(wrong_tag_list, gold_tag_list, pred_tag_list)
+                f0_5_score += f0_5
+                precision_score += precision
+                recall_score += recall
                 # logits = output[0]
                 # loss_fct = CrossEntropyLoss()
                 # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
@@ -260,13 +277,17 @@ class Seq2SeqTrainer:
 
             end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else test_sample_len
             logging.info("batch index = %d, start_index = %d, end_index = %d" % (i, start_index, end_index))
- 
+
         eval_loss = eval_loss / nb_eval_steps
-        rouge_score = rouge_score / nb_eval_steps
+        f0_5_score = f0_5_score / nb_eval_steps
+        precision_score = precision_score / nb_eval_steps
+        recall_score = recall_score / nb_eval_steps
 
         result = {
             "eval_loss": eval_loss,
-            "rouge_score": rouge_score
+            "f0_5_score": f0_5_score,
+            "recall_score": recall_score,
+            "precision_score": precision_score
         }
         
         wandb.log(result)

@@ -34,7 +34,7 @@ class FedOptTrainer(object):
 
         weights = self.trainer.get_model_params()
 
-        # transform Te0nsor to list
+        # transform Tensor to list
         if self.args.is_mobile == 1:
             weights = transform_tensor_to_list(weights)
         return weights, self.local_sample_number
