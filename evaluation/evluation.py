@@ -20,7 +20,7 @@ def evaluate_gec(wrong_tag_list, gold_tag_list, pred_tag_list):
 
     all_wrong = wrong_true + wrong_false
     recall = wrong_true / (all_wrong + 1e-8)
-    precision = wrong_true / (right_false + wrong_true + + 1e-8)
+    precision = wrong_true / (right_false + wrong_true + 1e-8)
     # F0.5-Measure = (1.25 * Precision * Recall) / (0.25 * Precision + Recall)
-    f0_5 = (1.25 * recall * precision) / (recall + (0.25 * precision)) + 1e-8
+    f0_5 = (1.25 * recall * precision) / (recall + (0.25 * precision) + 1e-8)
     return recall, precision, f0_5
