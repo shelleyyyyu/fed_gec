@@ -24,7 +24,7 @@ from evaluation.evaluate import *
 # import bleurt 
 from evaluation.e_modules.tokenizer import Tokenizer
 from evaluation.e_modules.annotator import Annotator
-
+from evaluation.compare_m2_for_evaluation import calculate_score
 class Seq2SeqTrainer:
     def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None):
         self.args = args
