@@ -1,5 +1,9 @@
 
 def evaluate_gec(wrong_tag_list, gold_tag_list, pred_tag_list):
+    print('-----'+'gec evaluation example'+'-----')
+    print('wrong_tag_list', wrong_tag_list[0])
+    print('gold_tag_list', gold_tag_list[0])
+    print('pred_tag_list', pred_tag_list[0])
     right_true, right_false, wrong_true, wrong_false = 0, 0, 0, 0
     for glist, plist, wlist in zip(gold_tag_list, pred_tag_list, wrong_tag_list):
         for c, w, p in zip(glist, wlist, plist):
