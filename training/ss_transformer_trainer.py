@@ -220,7 +220,6 @@ class Seq2SeqTrainer:
         f0_5_score = 0.0
         precision_score = 0.0
         recall_score = 0.0
-        wrong_tag_list, gold_tag_list, pred_tag_list = [], [], []
 
         # bluert_score = 0.0
         # bluert_checkpoint = "~/fednlp_data/bleurt-base-128"
@@ -258,9 +257,9 @@ class Seq2SeqTrainer:
                 ref_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
                                                                clean_up_tokenization_spaces=False).strip()) for g in
                             inputs['decoder_input_ids']]
-                wrong_tag_list.extend(input_list)
-                pred_tag_list.extend(hyp_list)
-                gold_tag_list.extend(ref_list)
+                wrong_tag_list = input_list
+                pred_tag_list = hyp_list
+                gold_tag_list = ref_list
 
                 recall, precision, f0_5 = evaluate_gec(wrong_tag_list, gold_tag_list, pred_tag_list)
                 f0_5_score += f0_5
