@@ -20,7 +20,7 @@ from transformers import (
     AdamW,
     get_linear_schedule_with_warmup,
 )
-from evaluation.evluation import evaluate_gec
+from evaluation.evaluate import *
 # import bleurt 
 
 
@@ -248,23 +248,29 @@ class Seq2SeqTrainer:
                 tmp_eval_loss = outputs[0]
                 summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
                                                   max_length=self.args.max_length, early_stopping=True)
-                input_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
-                                                                 clean_up_tokenization_spaces=False).strip()) for g in
-                              inputs['input_ids']]
-                hyp_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
-                                                               clean_up_tokenization_spaces=False).strip()) for g in
-                            summary_ids]
-                ref_list = [list(self.decoder_tokenizer.decode(g, skip_special_tokens=True,
-                                                               clean_up_tokenization_spaces=False).strip()) for g in
-                            inputs['decoder_input_ids']]
-                wrong_tag_list = input_list
-                pred_tag_list = hyp_list
-                gold_tag_list = ref_list
+                wrong_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['input_ids']]
+                pred_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in summary_ids]
+                gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
 
-                recall, precision, f0_5 = evaluate_gec(wrong_tag_list, gold_tag_list, pred_tag_list)
-                f0_5_score += f0_5
-                precision_score += precision
-                recall_score += recall
+                # wrong_tag_list[['但其实同意他的意见，但我不爱复习。']]
+                # gold_tag_list[['其实虽然同意他的意见，但我不爱复习。']]
+                # pred_tag_list[['但其实同意他的意�']]
+
+                hyp_input_sents, ref_input_sents = [], []
+                for i in range(len(wrong_tag_list)):
+                    hyp_input_sents.append([wrong_tag_list[i], pred_tag_list[i]])
+                    ref_input_sents.append([wrong_tag_list[i], gold_tag_list[i]])
+
+                # hyp_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你就会尝到泰国人死爱的味道。']]
+                # ref_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你会尝到泰国人死爱的味道。']]
+
+                hyp_annotations = get_edits(hyp_input_sents, granularity='word', multi_cheapest_strategy='all', batch_size=128, device=0)
+                ref_annotations = get_edits(ref_input_sents, granularity='word', multi_cheapest_strategy='all', batch_size=128, device=0)
+                result = calculate_score(hyp_annotations, ref_annotations)
+                print(result)
+                f0_5_score += result['f0_5']
+                precision_score += result['precision']
+                recall_score += result['recall']
                 # logits = output[0]
                 # loss_fct = CrossEntropyLoss()
                 # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
