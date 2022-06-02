@@ -57,7 +57,7 @@ def create_model(args, formulation="classification"):
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
         },
         "seq2seq": {
-            "mbart": (MBartConfig, MBartForConditionalGenerationM, MBartTokenizer),
+            "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
         }
     }
