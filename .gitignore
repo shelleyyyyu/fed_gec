@@ -1,3 +1,6 @@
 cache_dir
 wandb
+*.pyc
+FedOPT_nlpcc_output
 fednlp_data
+*.log
