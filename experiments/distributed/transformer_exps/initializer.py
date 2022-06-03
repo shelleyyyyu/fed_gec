@@ -31,7 +31,8 @@ from transformers import (
     MarianTokenizer,
     CTRLConfig,
     CTRLModel,
-    CTRLTokenizer
+    CTRLTokenizer,
+    AutoTokenizer
 )
 
 from FedML.fedml_api.distributed.fedavg.FedAvgAPI import FedML_FedAvg_distributed
@@ -87,7 +88,10 @@ def create_model(args, formulation="classification"):
     #     args.model_name, num_labels=args.num_labels, **args.config)
     config = config_class.from_pretrained(args.model_name, **args.config)
     model = model_class.from_pretrained(args.model_name, config=config)
-    tokenizer = tokenizer_class.from_pretrained(args.model_name, do_lower_case=args.do_lower_case)
+    # tokenizer = tokenizer_class.from_pretrained(args.model_name, do_lower_case=args.do_lower_case)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name, do_lower_case=args.do_lower_case)
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     # if formulation != "seq2seq":
     #     tokenizer = tokenizer_class.from_pretrained(
     #         args.model_name, do_lower_case=args.do_lower_case)
