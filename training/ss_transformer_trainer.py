@@ -36,13 +36,13 @@ class Seq2SeqTrainer:
         # model
         self.model = model
         self.model.to(self.device)
-        # self.tokenizer = tokenizer
-        self.encoder_tokenizer = tokenizer[0]
-        self.decoder_tokenizer = tokenizer[1]
+
+        self.encoder_tokenizer = tokenizer
+        self.decoder_tokenizer = tokenizer
 
         # training results
         self.results = {}
-        self.tokenizer = Tokenizer('word', self.device)
+        self.eval_tokenizer = Tokenizer('word', self.device)
         global annotator, sentence_to_tokenized
         self.annotator = Annotator.create_default('word', 'all')
         
@@ -272,8 +272,8 @@ class Seq2SeqTrainer:
                 # hyp_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你就会尝到泰国人死爱的味道。']]
                 # ref_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你会尝到泰国人死爱的味道。']]
 
-                hyp_annotations = get_edits(self.tokenizer, self.annotator, hyp_input_sents, batch_size=128)
-                ref_annotations = get_edits(self.tokenizer, self.annotator, ref_input_sents, batch_size=128)
+                hyp_annotations = get_edits(self.eval_tokenizer, self.annotator, hyp_input_sents, batch_size=128)
+                ref_annotations = get_edits(self.eval_tokenizer, self.annotator, ref_input_sents, batch_size=128)
                 result = calculate_score(hyp_annotations, ref_annotations)
                 f0_5_score += result['f0_5']
                 precision_score += result['precision']

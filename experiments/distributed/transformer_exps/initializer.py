@@ -19,7 +19,7 @@ from transformers import (
     MBartTokenizer,
     GPT2Config,
     GPT2Model,
-    GPT2TokenizerFast,
+    GPT2Tokenizer,
     T5Config,
     T5ForConditionalGeneration,
     T5Tokenizer,
@@ -72,7 +72,7 @@ def create_model(args, formulation="classification"):
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
         },
         "seq2seq": {
-            "gpt2": (GPT2Config, GPT2Model, GPT2TokenizerFast),
+            "gpt2": (GPT2Config, GPT2Model, GPT2Tokenizer),
             "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
             "t5":(T5Config, T5ForConditionalGeneration, T5Tokenizer),
@@ -87,13 +87,14 @@ def create_model(args, formulation="classification"):
     #     args.model_name, num_labels=args.num_labels, **args.config)
     config = config_class.from_pretrained(args.model_name, **args.config)
     model = model_class.from_pretrained(args.model_name, config=config)
-    if formulation != "seq2seq":
-        tokenizer = tokenizer_class.from_pretrained(
-            args.model_name, do_lower_case=args.do_lower_case)
-    else:
-        tokenizer = [None, None]
-        tokenizer[0] = tokenizer_class.from_pretrained(args.model_name)
-        tokenizer[1]= tokenizer[0]
+    tokenizer = tokenizer_class.from_pretrained(args.model_name, do_lower_case=args.do_lower_case)
+    # if formulation != "seq2seq":
+    #     tokenizer = tokenizer_class.from_pretrained(
+    #         args.model_name, do_lower_case=args.do_lower_case)
+    # else:
+    #     tokenizer = [None, None]
+    #     tokenizer[0] = tokenizer_class.from_pretrained(args.model_name)
+    #     tokenizer[1]= tokenizer[0]
     # logging.info(self.model)
     return config, model, tokenizer
 
