@@ -16,7 +16,22 @@ from transformers import (
     BartTokenizer,
     MBartConfig,
     MBartForConditionalGeneration,
-    MBartTokenizer
+    MBartTokenizer,
+    GPT2Config,
+    GPT2Model,
+    GPT2TokenizerFast,
+    T5Config,
+    T5ForConditionalGeneration,
+    T5Tokenizer,
+    BertGenerationConfig,
+    BertGenerationConfig,
+    BertGenerationTokenizer,
+    MarianConfig,
+    MarianMTModel,
+    MarianTokenizer,
+    CTRLConfig,
+    CTRLModel,
+    CTRLTokenizer
 )
 
 from FedML.fedml_api.distributed.fedavg.FedAvgAPI import FedML_FedAvg_distributed
@@ -57,10 +72,15 @@ def create_model(args, formulation="classification"):
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
         },
         "seq2seq": {
+            "gpt2": (GPT2Config, GPT2Model, GPT2TokenizerFast),
             "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+            "t5":(T5Config, T5ForConditionalGeneration, T5Tokenizer),
+            "marianMT": (MarianConfig, MarianMTModel, MarianTokenizer),
+            'ctrl': (CTRLConfig, CTRLModel, CTRLTokenizer)
         }
     }
+
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
         args.model_type]
     # config = config_class.from_pretrained(
