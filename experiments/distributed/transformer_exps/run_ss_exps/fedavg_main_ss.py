@@ -117,13 +117,7 @@ if __name__ == "__main__":
     print('Create Model')
     model_config, client_model, tokenizer = create_model(
         model_args, formulation="seq2seq")
-
-    print('Get Seq2SeqTrainer')
-    # trainer
-    client_trainer = Seq2SeqTrainer(
-        model_args, device, client_model, None, None, tokenizer)
-    fed_trainer = FedTransformerTrainer(client_trainer, client_model)
-
+    
     print('Get TLMPreprocessor')
     # data manager
     preprocessor = TLMPreprocessor(args=model_args, tokenizer=tokenizer)
@@ -133,6 +127,13 @@ if __name__ == "__main__":
     dm = Seq2SeqDataManager(args, model_args, preprocessor, process_id, args.client_num_per_round)
     train_data_num, train_data_global, test_data_global, train_data_local_num_dict, \
     train_data_local_dict, test_data_local_dict, num_clients = dm.load_federated_data(process_id=process_id)
+    
+    print('Get Seq2SeqTrainer')
+    # trainer
+    client_trainer = Seq2SeqTrainer(
+        model_args, device, client_model, None, None, tokenizer, preprocessor)
+    fed_trainer = FedTransformerTrainer(client_trainer, client_model, preprocessor)
+
     # print('train_data_num', train_data_num)
     # print('train_data_global', train_data_global)
     # print('test_data_global', test_data_global)

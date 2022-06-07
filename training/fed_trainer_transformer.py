@@ -5,10 +5,11 @@ from FedML.fedml_core.trainer.model_trainer import ModelTrainer
 
 class FedTransformerTrainer(ModelTrainer):
 
-    def __init__(self, trainer, model):
+    def __init__(self, trainer, model, preprocessor):
         super().__init__(model)
         self.model_trainer = trainer
         self.model = model
+        self.preprocessor = preprocessor
 
     def get_model_params(self):
         return self.model.cpu().state_dict()
@@ -18,8 +19,10 @@ class FedTransformerTrainer(ModelTrainer):
 
     def train(self, train_data, device, args):
         logging.info("Client(%d)" % self.id + ":| Local Train Data Size = %d" % (len(train_data)))
+        #logging.info(self.model_trainer) #training.ss_transformer_trainer.Seq2SeqTrainer
         self.model_trainer.train_dl = train_data
-        self.model_trainer.train_model(device=device)
+        _, _, train_data_loss_list, train_data_list = self.model_trainer.train_model(device=device)
+        return train_data_loss_list, train_data_list
 
     def test(self, test_data, device, args=None):
         pass

@@ -4,3 +4,9 @@ wandb
 FedOPT_nlpcc_output
 fednlp_data
 *.log
+*.pyc
+.log
+words.vector.gz.*
+cache_dir/
+wandb/
+FedOPT_nlpcc_output/

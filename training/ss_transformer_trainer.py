@@ -11,6 +11,7 @@ import os
 import numpy as np
 import torch
 import wandb
+import operator
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 from torch.nn import CrossEntropyLoss
@@ -21,12 +22,14 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 from evaluation.evaluate import *
+from operator import itemgetter
 # import bleurt 
-from evaluation.e_modules.tokenizer import Tokenizer
-from evaluation.e_modules.annotator import Annotator
+from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
+from evaluation.e_modules.annotator import Annotator as EvalAnnotator
 from evaluation.compare_m2_for_evaluation import calculate_score
+
 class Seq2SeqTrainer:
-    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None):
+    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None):
         self.args = args
         self.device = device
 
@@ -39,12 +42,14 @@ class Seq2SeqTrainer:
         # self.tokenizer = tokenizer
         self.encoder_tokenizer = tokenizer[0]
         self.decoder_tokenizer = tokenizer[1]
+        self.preprocessor = preprocessor
 
         # training results
         self.results = {}
-        self.tokenizer = Tokenizer('word', self.device)
-        global annotator, sentence_to_tokenized
-        self.annotator = Annotator.create_default('word', 'all')
+
+        self.eval_tokenizer = EvalTokenizer('word', self.device)
+        # global Evalannotator, sentence_to_tokenized
+        self.eval_annotator = EvalAnnotator.create_default('word', 'all')
         
 
     def set_data(self, train_dl, test_dl=None):
@@ -137,6 +142,11 @@ class Seq2SeqTrainer:
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
+        train_data_loss_list = []
+        train_data_list = []
+        train_data_f0_5 = 0.0
+        train_data_recall = 0.0
+        train_data_precision = 0.0
 
         # if args.evaluate_during_training:
         #     training_progress_scores = self._create_training_progress_scores()
@@ -153,10 +163,11 @@ class Seq2SeqTrainer:
             for batch_idx, batch in enumerate(self.train_dl):
                 self.model.train()
                 inputs = self._get_inputs_dict(batch)
-                # print('inputs', inputs)
-                # inputs {'input_ids': tensor([[    0, 47876,  3602, 47842,     2]]), 'attention_mask': tensor([[1, 1, 1, 1, 1]]), 'decoder_input_ids': tensor([[    0, 47876,  3602, 47842]]), 'labels': tensor([[47876,  3602, 47842,     2]])}
-                # print('self.model', self.model)
-                # self.model BartForConditionalGeneration
+                
+                # logging.info('inputs', inputs) # inputs {'input_ids': tensor([[    0, 47876,  3602, 47842,     2]]), 'attention_mask': tensor([[1, 1, 1, 1, 1]]), 'decoder_input_ids': tensor([[    0, 47876,  3602, 47842]]), 'labels': tensor([[47876,  3602, 47842,     2]])}
+                # logging.info('self.model', self.model) # self.model BartForConditionalGeneration
+                
+
                 if args.fp16:
                     with amp.autocast():
                         outputs = self.model(**inputs)
@@ -166,7 +177,25 @@ class Seq2SeqTrainer:
                     outputs = self.model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]
-
+                if epoch == (args.epochs-1):
+                    loss_list = outputs[1]
+                    train_data_loss_list.extend(loss_list)
+                    input_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['input_ids']]
+                    train_data_list.extend(input_list)
+                
+                # logging.info(inputs['input_ids'])
+                # logging.info(loss)
+                # logging.info(sorted_loss_index)
+                # logging.info(sorted_loss_list)
+      
+                # self.model: BartForConditionalGeneration
+                # loss: 5.0506 (float number)
+                # outputs_size=6
+                # 1. mean_loss
+                # 2. in-batch loss
+                # 3. encoder outputs
+                # 4. decoder outputs
+                
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
@@ -210,8 +239,12 @@ class Seq2SeqTrainer:
                                                                and global_step % self.args.evaluate_during_training_steps == 0):
                         results, _, _ = self.eval_model(epoch, global_step)
                         logging.info(results)
-
-        return global_step, tr_loss / global_step
+        #logging.info(train_data_loss_list)
+        #logging.info(len(train_data_loss_list))
+        #logging.info(train_data_list)
+        #logging.info(len(train_data_list))
+        
+        return global_step, tr_loss / global_step, train_data_loss_list, train_data_list
 
     def eval_model(self, epoch=0, global_step=0, device=None):
         if not device:
@@ -272,8 +305,8 @@ class Seq2SeqTrainer:
                 # hyp_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你就会尝到泰国人死爱的味道。']]
                 # ref_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你会尝到泰国人死爱的味道。']]
 
-                hyp_annotations = get_edits(self.tokenizer, self.annotator, hyp_input_sents, batch_size=128)
-                ref_annotations = get_edits(self.tokenizer, self.annotator, ref_input_sents, batch_size=128)
+                hyp_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, hyp_input_sents, batch_size=128)
+                ref_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, ref_input_sents, batch_size=128)
                 result = calculate_score(hyp_annotations, ref_annotations)
                 f0_5_score += result['f0_5']
                 precision_score += result['precision']

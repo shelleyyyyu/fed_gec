@@ -7,7 +7,7 @@ from .FedOptTrainer import FedOptTrainer
 from ...standalone.fedopt.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 from ...standalone.fedopt.my_model_trainer_nwp import MyModelTrainer as MyModelTrainerNWP
 from ...standalone.fedopt.my_model_trainer_tag_prediction import MyModelTrainer as MyModelTrainerTAG
-
+import logging
 
 def FedML_init():
     comm = MPI.COMM_WORLD
@@ -58,7 +58,7 @@ def init_server(args, device, comm, rank, size, model, train_data_num, train_dat
 
 
 def init_client(args, device, comm, process_id, size, model, train_data_num, train_data_local_num_dict,
-                train_data_local_dict, model_trainer=None):
+                train_data_local_dict, model_trainer=None, preprocessor=None):
     client_index = process_id - 1
     if model_trainer is None:
         if args.dataset == "stackoverflow_lr":
@@ -68,7 +68,6 @@ def init_client(args, device, comm, process_id, size, model, train_data_num, tra
         else: # default model trainer is for classification problem
             model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(client_index)
-
     trainer = FedOptTrainer(client_index, train_data_local_dict, train_data_local_num_dict, train_data_num, device,
                             args, model_trainer)
     client_manager = FedOptClientManager(args, trainer, comm, process_id, size)

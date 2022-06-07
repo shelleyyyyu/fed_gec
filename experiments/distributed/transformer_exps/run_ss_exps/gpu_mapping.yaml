@@ -47,5 +47,5 @@ mapping_a100_4gpus:
 
 
 mapping_a100_1gpu:
-    g1lmd2: [5]
+    host1: [3,2]
 
