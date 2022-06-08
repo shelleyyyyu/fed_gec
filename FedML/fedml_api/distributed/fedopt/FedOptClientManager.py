@@ -15,7 +15,6 @@ except ImportError:
 from .message_define import MyMessage
 from .utils import transform_list_to_tensor, post_complete_message_to_sweep_process
 
-
 class FedOptClientManager(ClientManager):
     def __init__(self, args, trainer, comm=None, rank=0, size=0, backend="MPI"):
         super().__init__(args, comm, rank, size, backend)
@@ -58,6 +57,7 @@ class FedOptClientManager(ClientManager):
         
         if self.args.is_mobile == 1:
             model_params = transform_list_to_tensor(model_params)
+        
 
         self.trainer.update_model(model_params) # <FedML.fedml_api.distributed.fedopt.FedOptTrainer.FedOptTrainer>
         self.trainer.update_dataset(int(client_index), self.train_data_loss_list, self.train_data_list, if_augment, augment_percentage)
@@ -68,15 +68,18 @@ class FedOptClientManager(ClientManager):
            post_complete_message_to_sweep_process(self.args)
            self.finish()
 
-    def send_model_to_server(self, receive_id, weights, local_sample_num):
+    def send_model_to_server(self, receive_id, weights, local_sample_num, train_loss_result, train_f0_5_result, train_recall_result, train_precision_result):
         message = Message(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, weights)
         message.add_params(MyMessage.MSG_ARG_KEY_NUM_SAMPLES, local_sample_num)
-        #message.add_params(MyMessage.MSG_ARG_KEY_TRAIN_DATA_LOSS_LIST, train_data_loss_list)
-        #message.add_params(MyMessage.MSG_ARG_KEY_TRAIN_DATA_LIST, train_data_list)
+        # train_loss_result, train_f0_5_result, train_recall_result, train_precision_result
+        message.add_params(MyMessage.MSG_ARG_KEY_TRAIN_LOSS, train_loss_result)
+        message.add_params(MyMessage.MSG_ARG_KEY_TRAIN_F0_5, train_f0_5_result)
+        message.add_params(MyMessage.MSG_ARG_KEY_PRECISION, train_recall_result)
+        message.add_params(MyMessage.MSG_ARG_KEY_RECALL, train_precision_result)
         self.send_message(message)
 
     def __train(self):
         logging.info("#######training########### round_id = %d" % self.round_idx)
-        weights, local_sample_num, self.train_data_loss_list, self.train_data_list = self.trainer.train(self.round_idx)
-        self.send_model_to_server(0, weights, local_sample_num)
+        weights, local_sample_num, self.train_data_loss_list, self.train_data_list, train_loss_result, train_f0_5_result, train_recall_result, train_precision_result = self.trainer.train(self.round_idx)
+        self.send_model_to_server(0, weights, local_sample_num, train_loss_result, train_f0_5_result, train_recall_result, train_precision_result)

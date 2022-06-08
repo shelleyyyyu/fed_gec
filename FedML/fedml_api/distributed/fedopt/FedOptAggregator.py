@@ -33,9 +33,18 @@ class FedOptAggregator(object):
         self.model_dict = dict()
         self.sample_num_dict = dict()
         self.flag_client_model_uploaded_dict = dict()
+        
+        self.loss_dict = dict()
+        self.f0_5_dict = dict()
+        self.precision_dict = dict()
+        self.recall_dict = dict()
+        self.flag_client_model_observed_dict = dict()
+        
         self.opt = self._instantiate_opt()
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
+        for idx in range(self.worker_num):
+            self.flag_client_model_observed_dict[idx] = False
 
     def _instantiate_opt(self):
         return OptRepo.name2cls(self.args.server_optimizer)(
@@ -58,6 +67,17 @@ class FedOptAggregator(object):
         self.model_dict[index] = model_params
         self.sample_num_dict[index] = sample_num
         self.flag_client_model_uploaded_dict[index] = True
+            
+    def add_local_observations(self, index, loss, f0_5, precision, recall):
+        logging.info("add_observations. index = %d" % index)
+        self.loss_dict[index] = loss
+        self.f0_5_dict[index] = f0_5
+        self.precision_dict[index] = precision
+        self.recall_dict[index] = recall
+        self.flag_client_model_observed_dict[index] = True
+        
+    def get_local_observations():
+        return self.loss_dict, self.f0_5_dict, self.precision_dict, self.recall_dict
 
     def check_whether_all_receive(self):
         for idx in range(self.worker_num):
@@ -65,6 +85,14 @@ class FedOptAggregator(object):
                 return False
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
+        return True
+   
+    def check_whether_all_observed(self):
+        for idx in range(self.worker_num):
+            if not self.flag_client_model_observed_dict[idx]:
+                return False
+        for idx in range(self.worker_num):
+            self.flag_client_model_observed_dict[idx] = False
         return True
 
     def aggregate(self):

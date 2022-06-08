@@ -177,11 +177,45 @@ class Seq2SeqTrainer:
                     outputs = self.model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]
+                logging.info('epoch: %d'%(epoch))
+                logging.info('rgs.epochs: %d'%(args.epochs))
                 if epoch == (args.epochs-1):
                     loss_list = outputs[1]
                     train_data_loss_list.extend(loss_list)
-                    input_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['input_ids']]
+                    input_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
+                                                                clean_up_tokenization_spaces=False).strip() 
+                                  for g in inputs['input_ids']]
+                    summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
+                                                  max_length=self.args.max_length, early_stopping=True)
+                    predict_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
+                                                                  clean_up_tokenization_spaces=False).strip() 
+                                    for g in summary_ids]
+                    output_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
+                                                                 clean_up_tokenization_spaces=False).strip() 
+                                   for g in inputs['decoder_input_ids']]
+                    hyp_input_sents, ref_input_sents = [], []
+                    for i in range(len(input_list)):
+                        hyp_input_sents.append([input_list[i], predict_list[i]])
+                        ref_input_sents.append([input_list[i], output_list[i]])
+                    
+                    hyp_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, hyp_input_sents, batch_size=self.args.train_batch_size)
+                    ref_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, ref_input_sents, batch_size=self.args.train_batch_size)
+                    result = calculate_score(hyp_annotations, ref_annotations)
+                    #logging.info('CHECK !! hyp_annotations ref_annotations')
+                    #logging.info(input_list)
+                    #logging.info(predict_list)
+                    #logging.info(output_list)
+                    #logging.info(hyp_annotations)
+                    #logging.info(ref_annotations)
+                    #logging.info(result)
+                    train_data_f0_5 += result['f0_5']
+                    train_data_recall += result['recall']
+                    train_data_precision += result['precision']
                     train_data_list.extend(input_list)
+                    #logging.info('input_list: %s'%(str(input_list)))
+                    #logging.info('train_data_recall: %.2f'%(train_data_recall))
+                    #logging.info('train_data_precision: %.2f'%(train_data_precision))
+                    #logging.info('train_data_f0_5: %.2f'%(train_data_f0_5))
                 
                 # logging.info(inputs['input_ids'])
                 # logging.info(loss)
@@ -244,7 +278,7 @@ class Seq2SeqTrainer:
         #logging.info(train_data_list)
         #logging.info(len(train_data_list))
         
-        return global_step, tr_loss / global_step, train_data_loss_list, train_data_list
+        return global_step, tr_loss / global_step, train_data_loss_list, train_data_list, train_data_f0_5 / global_step, train_data_recall / global_step, train_data_precision / global_step
 
     def eval_model(self, epoch=0, global_step=0, device=None):
         if not device:

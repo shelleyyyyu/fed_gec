@@ -4,6 +4,10 @@ import sys
 import random
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
+import torch.nn as nn
+import torch.nn.functional as F
+#from .ActorCriticAlgorithm import PolicyNet
+#from .ActorCriticAlgorithm import BuildState
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
@@ -13,7 +17,7 @@ try:
 except ImportError:
     from FedML.fedml_core.distributed.communication.message import Message
     from FedML.fedml_core.distributed.server.server_manager import ServerManager
-
+    
 
 class FedOptServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
@@ -24,6 +28,9 @@ class FedOptServerManager(ServerManager):
         self.round_idx = 0
         self.is_preprocessed = is_preprocessed
         self.preprocessed_client_lists = preprocessed_client_lists
+        #self.policy = PolicyNet(16, 4, hidden_sizes=(128, 64))
+        #self.build_state = BuildState(state_dim, action_dim)
+
 
     def run(self):
         super().run()
@@ -43,14 +50,28 @@ class FedOptServerManager(ServerManager):
     def handle_message_receive_model_from_client(self, msg_params):
         sender_id = msg_params.get(MyMessage.MSG_ARG_KEY_SENDER)
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
-        local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
-        #train_data_loss_list = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_DATA_LOSS_LIST)
-        #train_data_list = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_DATA_LIST)
+        local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)     
+        train_loss_result = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_LOSS)
+        train_f0_5_result = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_F0_5)
+        train_recall_result = msg_params.get(MyMessage.MSG_ARG_KEY_PRECISION)
+        train_precision_result = msg_params.get(MyMessage.MSG_ARG_KEY_RECALL)
+        
+        logging.info('shelly check')
+        logging.info(sender_id-1)
+        logging.info(train_loss_result)
+        logging.info(train_f0_5_result)
+        logging.info(train_recall_result)
+        logging.info(train_precision_result)
         
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
-        if b_all_received:
+        self.aggregator.add_local_observations(sender_id - 1, train_loss_result, train_f0_5_result, train_precision_result, train_recall_result)
+        b_all_observed = self.aggregator.check_whether_all_observed()
+        logging.info("b_all_observed = " + str(b_all_observed))
+        logging.info('sender_id: %s'%(str(sender_id)))
+        
+        if b_all_received and b_all_observed:
             # aggregate the params 
             global_model_params = self.aggregator.aggregate()
             # Test on server: test_on_the_server()
@@ -86,6 +107,20 @@ class FedOptServerManager(ServerManager):
                 global_model_params = transform_tensor_to_list(global_model_params)
                 
             #TODO: -HERE NEED TO DECIDE THE NEXT AUGMENT TYPE(CLIENT)
+            
+            loss_dict, f0_5_dict, precision_dict, recall_dict = self.aggregator.get_local_observations()
+            logging.info('shfhkewhfkjhwefhjwebfkjbwekjfbkjwe')
+            logging.info(loss_dict)
+            logging.info(f0_5_dict)
+            logging.info(precision_dict)
+            logging.info(recall_dict1)
+            exit()
+
+            #cur_learning_state = self.build_state.build(loss_dict, f0_5_dict, precision_dict, recall_dict)
+            #action_probs, action_weight = self.policy(cur_learning_state)
+            #sample_from = Categorical(action_probs[0])
+            #next_augment_client = next_action = sample_from.sample()
+            #next_augment_percentage = action_weight 
             
             next_augment_client = random.choice(list([int(i) for i in range(1, self.size)]))
             next_augment_percentage = random.choice(list([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]))

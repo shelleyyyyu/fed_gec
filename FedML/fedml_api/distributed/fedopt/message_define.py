@@ -24,4 +24,8 @@ class MyMessage(object):
     MSG_ARG_KEY_AUGMENT_PERCENTAGE = "augment_percentage"
     #MSG_ARG_KEY_TRAIN_DATA_LOSS_LIST = "train_data_loss_list"
     #MSG_ARG_KEY_TRAIN_DATA_LIST = "train_data_list"
+    MSG_ARG_KEY_TRAIN_LOSS = "train_loss"
+    MSG_ARG_KEY_TRAIN_F0_5 = "train_f0_5"
+    MSG_ARG_KEY_PRECISION = "train_precision"
+    MSG_ARG_KEY_RECALL = "train_recall"
 
