@@ -50,8 +50,8 @@ class TLMPreprocessor(BasePreprocessor):
         return examples
 
     def transform_features(self, examples, evaluate=False, no_cache=False):
-        encoder_tokenizer = self.tokenizer
-        decoder_tokenizer = self.tokenizer
+        encoder_tokenizer = self.tokenizer[0]
+        decoder_tokenizer = self.tokenizer[1]
         args = self.args
 
         if not no_cache:

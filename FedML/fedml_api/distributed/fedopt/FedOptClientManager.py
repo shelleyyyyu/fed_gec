@@ -72,7 +72,6 @@ class FedOptClientManager(ClientManager):
         message = Message(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, weights)
         message.add_params(MyMessage.MSG_ARG_KEY_NUM_SAMPLES, local_sample_num)
-        # train_loss_result, train_f0_5_result, train_recall_result, train_precision_result
         message.add_params(MyMessage.MSG_ARG_KEY_TRAIN_LOSS, train_loss_result)
         message.add_params(MyMessage.MSG_ARG_KEY_TRAIN_F0_5, train_f0_5_result)
         message.add_params(MyMessage.MSG_ARG_KEY_PRECISION, train_recall_result)

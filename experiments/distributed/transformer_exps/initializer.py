@@ -1,5 +1,5 @@
 import random
-
+import logging
 import numpy as np
 import torch
 from transformers import (
@@ -11,17 +11,24 @@ from transformers import (
     DistilBertTokenizer,
     DistilBertForTokenClassification,
     DistilBertForQuestionAnswering,
-    BartConfig, 
-    BartForConditionalGeneration, 
-    BartTokenizer,
+    #BartConfig, 
+    #BartForConditionalGeneration, 
+    #BartTokenizer,
     MBartConfig,
     MBartForConditionalGeneration,
     MBartTokenizer
 )
 
-#from modeling_transformers.modeling_bart import BartForConditionalGeneration
-#from modeling_transformers.tokenization_bart import BartTokenizer
-#from modeling_transformers.configuration_bart import BartConfig
+from modeling_transformers.modeling_bart import BartForConditionalGeneration
+from modeling_transformers.tokenization_bart import BartTokenizer
+from modeling_transformers.configuration_bart import BartConfig
+
+# BERTLM
+from transformers import BertConfig, EncoderDecoderConfig, EncoderDecoderModel
+from modeling_transformers.modeling_bert_generation import BertGenerationEncoder, BertGenerationDecoder
+from modeling_transformers.tokenization_bert_generation import BertGenerationTokenizer
+from modeling_transformers.configuration_bert_generation import BertGenerationConfig
+
 
 from FedML.fedml_api.distributed.fedavg.FedAvgAPI import FedML_FedAvg_distributed
 from FedML.fedml_api.distributed.fedopt.FedOptAPI import FedML_FedOpt_distributed
@@ -63,14 +70,23 @@ def create_model(args, formulation="classification"):
         "seq2seq": {
             "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+            "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
+            "bert_lm_zh": (BertConfig, (BertGenerationEncoder, BertGenerationDecoder), BertTokenizer),
         }
     }
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
         args.model_type]
+    
+    logging.info('Pretrain Model Name: %s' %(str(args.model_name)))
+    logging.info('Config Class: %s' %(str(config_class)))
+    logging.info('Model Class: %s' %(str(model_class)))
+    logging.info('Tokenizer CLass: %s' %(str(tokenizer_class)))
+
     # config = config_class.from_pretrained(
     #     args.model_name, num_labels=args.num_labels, **args.config)
+    
     config = config_class.from_pretrained(args.model_name, **args.config)
-    model = model_class.from_pretrained(args.model_name, config=config)
+    
     if formulation != "seq2seq":
         tokenizer = tokenizer_class.from_pretrained(
             args.model_name, do_lower_case=args.do_lower_case)
@@ -78,7 +94,15 @@ def create_model(args, formulation="classification"):
         tokenizer = [None, None]
         tokenizer[0] = tokenizer_class.from_pretrained(args.model_name)
         tokenizer[1]= tokenizer[0]
-    # logging.info(self.model)
+        
+    if args.model_type == 'bert_lm_zh':
+        bConfig = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
+        bEncoder = BertGenerationEncoder.from_pretrained(args.model_name, bos_token_id=101, eos_token_id=102)
+        bDecoder = BertGenerationDecoder.from_pretrained(args.model_name, add_cross_attention=True, is_decoder=True, bos_token_id=101, eos_token_id=102)
+        model = EncoderDecoderModel(encoder=bEncoder, decoder=bDecoder, config=bConfig)
+    else:
+        model = model_class.from_pretrained(args.model_name, config=config)
+        
     return config, model, tokenizer
 
 
@@ -136,6 +160,8 @@ def add_federated_args(parser):
 
     parser.add_argument('--max_seq_length', type=int, default=128, metavar='N',
                         help='maximum sequence length (default: 128)')
+    parser.add_argument('--max_length', type=int, default=128, metavar='N',
+                        help='maximum decode sequence length (default: 128)')
 
     parser.add_argument('--n_gpu', type=int, default=1, metavar='EP',
                         help='how many gpus will be used ')

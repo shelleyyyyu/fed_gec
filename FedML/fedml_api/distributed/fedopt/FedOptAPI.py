@@ -30,7 +30,7 @@ def FedML_FedOpt_distributed(process_id, worker_number, device, comm, model, tra
 
 
 def init_server(args, device, comm, rank, size, model, train_data_num, train_data_global, test_data_global,
-                train_data_local_dict, test_data_local_dict, train_data_local_num_dict, model_trainer, preprocessed_sampling_lists=None):
+                train_data_local_dict, test_data_local_dict, train_data_local_num_dict, model_trainer, preprocessed_sampling_lists=None, validate_round_num=3):
     if model_trainer is None:
         if args.dataset == "stackoverflow_lr":
             model_trainer = MyModelTrainerTAG(model)
@@ -47,12 +47,12 @@ def init_server(args, device, comm, rank, size, model, train_data_num, train_dat
 
     # start the distributed training
     if preprocessed_sampling_lists is None :
-        server_manager = FedOptServerManager(args, aggregator, comm, rank, size)
+        server_manager = FedOptServerManager(args, aggregator, comm, rank, size, validate_round_num=validate_round_num)
     else:
         server_manager = FedOptServerManager(args, aggregator, comm, rank, size,
             backend="MPI", 
             is_preprocessed=True, 
-            preprocessed_client_lists=preprocessed_sampling_lists)
+            preprocessed_client_lists=preprocessed_sampling_lists, validate_round_num=validate_round_num)
     server_manager.send_init_msg()
     server_manager.run()
 

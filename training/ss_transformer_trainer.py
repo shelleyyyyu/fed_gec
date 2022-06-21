@@ -21,7 +21,7 @@ from transformers import (
     AdamW,
     get_linear_schedule_with_warmup,
 )
-from evaluation.evaluate import *
+from evaluation.evaluate import Evaluator
 from operator import itemgetter
 # import bleurt 
 from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
@@ -46,10 +46,10 @@ class Seq2SeqTrainer:
 
         # training results
         self.results = {}
-
-        self.eval_tokenizer = EvalTokenizer('word', self.device)
-        # global Evalannotator, sentence_to_tokenized
-        self.eval_annotator = EvalAnnotator.create_default('word', 'all')
+        
+        eval_tokenizer = EvalTokenizer('word', self.device)
+        eval_annotator = EvalAnnotator.create_default('word', 'all')
+        self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
         
 
     def set_data(self, train_dl, test_dl=None):
@@ -163,11 +163,8 @@ class Seq2SeqTrainer:
             for batch_idx, batch in enumerate(self.train_dl):
                 self.model.train()
                 inputs = self._get_inputs_dict(batch)
-                
-                # logging.info('inputs', inputs) # inputs {'input_ids': tensor([[    0, 47876,  3602, 47842,     2]]), 'attention_mask': tensor([[1, 1, 1, 1, 1]]), 'decoder_input_ids': tensor([[    0, 47876,  3602, 47842]]), 'labels': tensor([[47876,  3602, 47842,     2]])}
                 # logging.info('self.model', self.model) # self.model BartForConditionalGeneration
                 
-
                 if args.fp16:
                     with amp.autocast():
                         outputs = self.model(**inputs)
@@ -177,30 +174,31 @@ class Seq2SeqTrainer:
                     outputs = self.model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]
-                logging.info('epoch: %d'%(epoch))
-                logging.info('rgs.epochs: %d'%(args.epochs))
                 if epoch == (args.epochs-1):
                     loss_list = outputs[1]
                     train_data_loss_list.extend(loss_list)
                     input_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
-                                                                clean_up_tokenization_spaces=False).strip() 
+                                                                clean_up_tokenization_spaces=True).strip() 
                                   for g in inputs['input_ids']]
                     summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
-                                                  max_length=self.args.max_length, early_stopping=True)
+                                                  max_length=self.args.max_seq_length, early_stopping=True)
                     predict_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
-                                                                  clean_up_tokenization_spaces=False).strip() 
+                                                                  clean_up_tokenization_spaces=True).strip() 
                                     for g in summary_ids]
                     output_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
-                                                                 clean_up_tokenization_spaces=False).strip() 
+                                                                 clean_up_tokenization_spaces=True).strip() 
                                    for g in inputs['decoder_input_ids']]
                     hyp_input_sents, ref_input_sents = [], []
                     for i in range(len(input_list)):
                         hyp_input_sents.append([input_list[i], predict_list[i]])
                         ref_input_sents.append([input_list[i], output_list[i]])
-                    
-                    hyp_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, hyp_input_sents, batch_size=self.args.train_batch_size)
-                    ref_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, ref_input_sents, batch_size=self.args.train_batch_size)
+                    hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
+                    ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
+                    #logging.info(hyp_annotations[0])
+                    #logging.info(ref_annotations[0])
                     result = calculate_score(hyp_annotations, ref_annotations)
+                    #logging.info(result)
+                    #logging.info('-'*10)
                     #logging.info('CHECK !! hyp_annotations ref_annotations')
                     #logging.info(input_list)
                     #logging.info(predict_list)
@@ -317,7 +315,7 @@ class Seq2SeqTrainer:
                 outputs = self.model(**inputs)
                 tmp_eval_loss = outputs[0]
                 summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
-                                                  max_length=self.args.max_length, early_stopping=True)
+                                                  max_length=self.args.max_seq_length, early_stopping=True)
                 wrong_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['input_ids']]
                 pred_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in summary_ids]
                 gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
@@ -327,20 +325,13 @@ class Seq2SeqTrainer:
                     logging.info(wrong_tag_list[0])
                     logging.info(gold_tag_list[0])
                     logging.info(pred_tag_list[0])
-                # wrong_tag_list[['但其实同意他的意见，但我不爱复习。']]
-                # gold_tag_list[['其实虽然同意他的意见，但我不爱复习。']]
-                # pred_tag_list[['但其实同意他的意�']]
-
+            
                 hyp_input_sents, ref_input_sents = [], []
-                for i in range(len(wrong_tag_list)):
-                    hyp_input_sents.append([wrong_tag_list[i], pred_tag_list[i]])
-                    ref_input_sents.append([wrong_tag_list[i], gold_tag_list[i]])
-
-                # hyp_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你就会尝到泰国人死爱的味道。']]
-                # ref_input_sents = [['这样，你就会尝到泰国人死爱的味道。', '这样，你会尝到泰国人死爱的味道。']]
-
-                hyp_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, hyp_input_sents, batch_size=128)
-                ref_annotations = get_edits(self.eval_tokenizer, self.eval_annotator, ref_input_sents, batch_size=128)
+                for j in range(len(wrong_tag_list)):
+                    hyp_input_sents.append([wrong_tag_list[j], pred_tag_list[j]])
+                    ref_input_sents.append([wrong_tag_list[j], gold_tag_list[j]])
+                hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
+                ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
                 result = calculate_score(hyp_annotations, ref_annotations)
                 f0_5_score += result['f0_5']
                 precision_score += result['precision']
@@ -392,7 +383,7 @@ class Seq2SeqTrainer:
             
         logging.info(self.results)
 
-        return result, model_preds, None
+        return result, model_preds
 
     def build_optimizer(self, model, iteration_in_total):
         warmup_steps = math.ceil(iteration_in_total * self.args.warmup_ratio)
@@ -491,7 +482,7 @@ class Seq2SeqTrainer:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     num_beams=self.args.num_beams,
-                    max_length=self.args.max_length,
+                    max_length=self.args.max_seq_length,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
                     repetition_penalty=self.args.repetition_penalty,
@@ -507,7 +498,7 @@ class Seq2SeqTrainer:
                     input_ids=input_ids,
                     decoder_start_token_id=tgt_lang_token,
                     num_beams=self.args.num_beams,
-                    max_length=self.args.max_length,
+                    max_length=self.args.max_seq_length,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
                     repetition_penalty=self.args.repetition_penalty,
@@ -521,7 +512,7 @@ class Seq2SeqTrainer:
                     input_ids=input_ids,
                     decoder_start_token_id=self.model.config.decoder.pad_token_id,
                     num_beams=self.args.num_beams,
-                    max_length=self.args.max_length,
+                    max_length=self.args.max_seq_length,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
                     repetition_penalty=self.args.repetition_penalty,

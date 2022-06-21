@@ -76,7 +76,7 @@ class FedOptAggregator(object):
         self.recall_dict[index] = recall
         self.flag_client_model_observed_dict[index] = True
         
-    def get_local_observations():
+    def get_local_observations(self):
         return self.loss_dict, self.f0_5_dict, self.precision_dict, self.recall_dict
 
     def check_whether_all_receive(self):
@@ -99,21 +99,25 @@ class FedOptAggregator(object):
         start_time = time.time()
         model_list = []
         training_num = 0
-
+        # logging.info('self.worker_num: %d' %(self.worker_num)) self.worker_num: 4
+        # logging.info('self.args.is_mobile: %d' %(self.args.is_mobile)) self.args.is_mobile: 1
         for idx in range(self.worker_num):
             if self.args.is_mobile == 1:
                 self.model_dict[idx] = transform_list_to_tensor(self.model_dict[idx])
             model_list.append((self.sample_num_dict[idx], self.model_dict[idx]))
             training_num += self.sample_num_dict[idx]
 
-        logging.info("len of self.model_dict[idx] = " + str(len(self.model_dict)))
-
+        #logging.info("len of self.model_dict[idx] = " + str(len(self.model_dict)))
+        #logging.info("model_list = " + str(model_list))
+        #logging.info("training_num = " + str(training_num))
         # logging.info("################aggregate: %d" % len(model_list))
         (num0, averaged_params) = model_list[0]
+        #logging.info("averaged_params = " + str(averaged_params))
         for k in averaged_params.keys():
             for i in range(0, len(model_list)):
                 local_sample_number, local_model_params = model_list[i]
                 w = local_sample_number / training_num
+                # 现在是按照每个L-Model的training sample数量决定L-params对G-Model的影响力（TODO: 調整L-Models更新G-models的方式）
                 if i == 0:
                     averaged_params[k] = local_model_params[k] * w
                 else:
@@ -172,8 +176,9 @@ class FedOptAggregator(object):
             return self.test_global
 
     def test_on_server_for_all_clients(self, round_idx):
-        if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):
-            return
+        is_test_on_the_server, result, model_preds = self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args)
+        if is_test_on_the_server:
+            return result, model_preds
 
         if round_idx % self.args.frequency_of_the_test == 0 or round_idx == self.args.comm_round - 1:
             logging.info("################local_test_on_all_clients : {}".format(round_idx))

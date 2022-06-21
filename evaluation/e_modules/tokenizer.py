@@ -2,6 +2,7 @@ from ltp import LTP
 from typing import List
 from pypinyin import pinyin, Style, lazy_pinyin
 import torch
+import logging
 
 class Tokenizer:
     """

@@ -64,7 +64,7 @@ if __name__ == "__main__":
         # initialize the wandb machine learning experimental tracking platform (https://wandb.ai/automl/fednlp).
         # wandb.init(settings=wandb.Settings(start_method='fork'))
         # or:  wandb.init(settings=wandb.Settings(start_method='thread'))
-        wandb.init(project="fednlp", entity="shelleyyyyu", name="FedNLP-" + str(args.fl_algorithm) + "-SS-" + str(args.dataset) + "-" + str(args.model_name), config=args, settings=wandb.Settings(start_method='fork'))
+        wandb.init(project="fednlp", entity="shelleyyyyu", name="FedNLP-" + str(args.fl_algorithm) + "-SS-" + str(args.dataset) + "-" + str(args.model_name), config=args)
 
     # device: check "gpu_mapping.yaml" to see how to define the topology
     device = mapping_processes_to_gpu_device_from_yaml_file(
@@ -98,6 +98,7 @@ if __name__ == "__main__":
                                  "reprocess_input_data": False,
                                  "overwrite_output_dir": True,
                                  "max_seq_length": args.max_seq_length,
+                                 "max_length": args.max_length,
                                  "train_batch_size": args.train_batch_size,
                                  "eval_batch_size": args.eval_batch_size,
                                  "evaluate_during_training": False,  # Disabled for FedAvg.
@@ -117,7 +118,7 @@ if __name__ == "__main__":
     print('Create Model')
     model_config, client_model, tokenizer = create_model(
         model_args, formulation="seq2seq")
-    
+
     print('Get TLMPreprocessor')
     # data manager
     preprocessor = TLMPreprocessor(args=model_args, tokenizer=tokenizer)
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     dm = Seq2SeqDataManager(args, model_args, preprocessor, process_id, args.client_num_per_round)
     train_data_num, train_data_global, test_data_global, train_data_local_num_dict, \
     train_data_local_dict, test_data_local_dict, num_clients = dm.load_federated_data(process_id=process_id)
-    
+
     print('Get Seq2SeqTrainer')
     # trainer
     client_trainer = Seq2SeqTrainer(

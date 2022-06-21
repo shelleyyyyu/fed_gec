@@ -265,6 +265,7 @@ class BaseDataManager(ABC):
                     "partition_data"][
                     str(client_idx)]["test"][
                     ()]
+                
                 train_data = self.read_instance_from_h5(
                     data_file, train_index_list, desc=" train data of client_id=%d [_load_federated_data_local] "%client_idx)
                 test_data = self.read_instance_from_h5(
@@ -277,10 +278,16 @@ class BaseDataManager(ABC):
                 logging.info(test_data['X'][0])
                 logging.info(test_data['y'][0])
                 print(len(test_data['X']))
+                
                 train_examples, train_features, train_dataset = self.preprocessor.transform(
                     **train_data, index_list=train_index_list)
                 test_examples, test_features, test_dataset = self.preprocessor.transform(
                     **test_data, index_list=test_index_list, evaluate=True)
+                
+                logging.info('----- Train Features -----')
+                logging.info(train_features[0])
+                logging.info('----- Test Features -----')
+                logging.info(test_examples[0])
 
                 with open(res, "wb") as handle:
                     pickle.dump((train_examples, train_features, train_dataset, test_examples, test_features, test_dataset), handle)
