@@ -10,3 +10,4 @@ words.vector.gz.*
 cache_dir/
 wandb/
 FedOPT_nlpcc_output/
+model/tail2tail/model

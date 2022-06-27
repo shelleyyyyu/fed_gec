@@ -1,0 +1,11 @@
+
+Get h5: 
+go to /Users/shelly/Desktop/laiye/project/cgec/code/FedNLP/data/raw_data_loader/test
+python ./test_rawdataloader.py --dataset nlpcc --data_dir ../../download_scripts/seq2seq/NLPCC_2018/ --h5_file_path ./nlpcc_data.h5
+
+
+Get partition h5:
+go to /Users/shelly/Desktop/laiye/project/cgec/code/FedNLP/data/advanced_partition
+python ./niid_label.py --client_number 4 --data_file /Users/shelly/fednlp_data/data_files/nlpcc_data.h5 --partition_file /Users/shelly/fednlp_data/partition_files/nlpcc_partition_data.h5 --task_type reading_comprehension --skew_type natural --seed 100
+
+
