@@ -19,16 +19,25 @@ from transformers import (
     MBartTokenizer
 )
 
+# BART
 from modeling_transformers.modeling_bart import BartForConditionalGeneration
 from modeling_transformers.tokenization_bart import BartTokenizer
 from modeling_transformers.configuration_bart import BartConfig
 
-# BERTLM
-from transformers import BertConfig, EncoderDecoderConfig, EncoderDecoderModel
-from modeling_transformers.modeling_bert_generation import BertGenerationEncoder, BertGenerationDecoder
-from modeling_transformers.tokenization_bert_generation import BertGenerationTokenizer
-from modeling_transformers.configuration_bert_generation import BertGenerationConfig
+# T5
+from modeling_transformers.modeling_t5 import T5ForConditionalGeneration
+from modeling_transformers.tokenization_t5 import T5Tokenizer
+from modeling_transformers.configuration_t5 import T5Config
 
+# BERTLM
+from modeling_transformers.modeling_bert import BertLMHeadModel
+from modeling_transformers.tokenization_bert import BertTokenizer
+from modeling_transformers.configuration_bert import BertConfig
+
+#RobertaLM
+from modeling_transformers.modeling_roberta import RobertaForCausalLM
+from modeling_transformers.tokenization_roberta import RobertaTokenizer
+from modeling_transformers.configuration_roberta import RobertaConfig
 
 from FedML.fedml_api.distributed.fedavg.FedAvgAPI import FedML_FedAvg_distributed
 from FedML.fedml_api.distributed.fedopt.FedOptAPI import FedML_FedOpt_distributed
@@ -71,21 +80,17 @@ def create_model(args, formulation="classification"):
             "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
             "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
-            "bert_lm_zh": (BertConfig, (BertGenerationEncoder, BertGenerationDecoder), BertTokenizer),
+            "t5_zh": (T5Config, T5ForConditionalGeneration, BertTokenizer),
+            "bert_lm_zh": (BertConfig, BertLMHeadModel, BertTokenizer),
+            "roberta_lm_zh": (RobertaConfig, RobertaForCausalLM, BertTokenizer),
         }
     }
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
         args.model_type]
     
-    logging.info('Pretrain Model Name: %s' %(str(args.model_name)))
-    logging.info('Config Class: %s' %(str(config_class)))
-    logging.info('Model Class: %s' %(str(model_class)))
-    logging.info('Tokenizer CLass: %s' %(str(tokenizer_class)))
-
-    # config = config_class.from_pretrained(
-    #     args.model_name, num_labels=args.num_labels, **args.config)
-    
     config = config_class.from_pretrained(args.model_name, **args.config)
+    if args.model_type == "bert_lm_zh" or args.model_type == "roberta_lm_zh":
+        config.is_decoder = True
     
     if formulation != "seq2seq":
         tokenizer = tokenizer_class.from_pretrained(
@@ -95,14 +100,14 @@ def create_model(args, formulation="classification"):
         tokenizer[0] = tokenizer_class.from_pretrained(args.model_name)
         tokenizer[1]= tokenizer[0]
         
-    if args.model_type == 'bert_lm_zh':
-        bConfig = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
-        bEncoder = BertGenerationEncoder.from_pretrained(args.model_name, bos_token_id=101, eos_token_id=102)
-        bDecoder = BertGenerationDecoder.from_pretrained(args.model_name, add_cross_attention=True, is_decoder=True, bos_token_id=101, eos_token_id=102)
-        model = EncoderDecoderModel(encoder=bEncoder, decoder=bDecoder, config=bConfig)
-    else:
-        model = model_class.from_pretrained(args.model_name, config=config)
-        
+
+    model = model_class.from_pretrained(args.model_name, config=config)
+    
+    logging.info('Pretrain Model Name: %s' %(str(args.model_name)))
+    logging.info('Config Class: %s' %(str(config_class)))
+    logging.info('Model Class: %s' %(str(model_class)))
+    logging.info('Tokenizer Class: %s' %(str(tokenizer_class)))
+    
     return config, model, tokenizer
 
 
@@ -193,6 +198,9 @@ def add_federated_args(parser):
 
     parser.add_argument('--client_num_per_round', type=int,
                         default=4, metavar='NN', help='number of workers')
+    
+    parser.add_argument('--num_beams', type=int,
+                        default=4, metavar='NN', help='number of beams')
 
     parser.add_argument('--epochs', type=int, default=3, metavar='EP',
                         help='how many epochs will be trained locally')

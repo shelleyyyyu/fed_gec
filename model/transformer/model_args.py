@@ -194,5 +194,5 @@ class Seq2SeqArgs(ModelArgs):
     top_p: float = None
     use_multiprocessed_decoding: bool = False
     evaluate_during_training: bool = True
-    src_lang: str = "en_XX"
-    tgt_lang: str = "ro_RO"
+    src_lang: str = "zh"
+    tgt_lang: str = "zh"

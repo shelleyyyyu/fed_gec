@@ -1227,16 +1227,26 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
         sequence_output = sequence_output * (self.model_dim ** -0.5)
         lm_logits = self.lm_head(sequence_output)
-
         loss = None
         if labels is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-100)
-            loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
+            #loss_fct = CrossEntropyLoss()
+            #loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
+            loss = F.cross_entropy(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
+            
+            loss_list = F.cross_entropy(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1), reduction='none')
+            loss_list = loss_list.view(decoder_outputs[0].size()[0], decoder_outputs[0].size()[1])
+            mean_loss_list = []
+            for losses in loss_list:
+                mean_loss_list.append(torch.mean(torch.stack([score for score in losses if score > 0.0]), dim=-1))
+                
+            mean_loss_list = torch.stack(mean_loss_list)
+            mean_loss_list = mean_loss_list.tolist()
+            
             # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
 
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
-            return ((loss,) + output) if loss is not None else output
+            return ((loss, mean_loss_list) + output) if loss is not None else output
 
         return Seq2SeqLMOutput(
             loss=loss,

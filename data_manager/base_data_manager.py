@@ -130,14 +130,47 @@ class BaseDataManager(ABC):
             # print((test_index_list[0]))
             # print((test_index_list[1]))
             # print((test_index_list[3]))
+            #raw_train_data = self.read_instance_from_h5(data_file, train_index_list)
+            #raw_test_data = self.read_instance_from_h5(data_file, test_index_list)
+            
+            #train_data = {}
+            #train_data['X'] = []
+            #train_data['y'] = []
+            #for (x, y) in zip(raw_train_data['X'], raw_train_data['y']):
+            #    train_data['X'].append(x)
+            #    train_data['y'].append((x, y))
+                
+            #test_data = {}
+            #test_data['X'] = []
+            #test_data['y'] = []
+            #for x, y in zip(raw_test_data['X'], raw_test_data['y']):
+            #    test_data['X'].append(x)
+            #    test_data['y'].append((x, y))
+                
             train_data = self.read_instance_from_h5(data_file, train_index_list)
             test_data = self.read_instance_from_h5(data_file, test_index_list)
+            
+            logging.info('----- Train Example -----')
+            logging.info(train_data['X'][0])
+            logging.info(train_data['y'][0])
+            logging.info(len(train_data['X']))
+            logging.info('----- Test Example -----')
+            logging.info(test_data['X'][0])
+            logging.info(test_data['y'][0])
+            logging.info(len(test_data['X']))
+            
             data_file.close()
             partition_file.close()
+            
             train_examples, train_features, train_dataset = self.preprocessor.transform(
                 **train_data, index_list=train_index_list)
             test_examples, test_features, test_dataset = self.preprocessor.transform(
                 **test_data, index_list=test_index_list, evaluate=True)
+            logging.info('----- Train Features -----')
+            logging.info(train_features[0])
+            logging.info('----- Test Features -----')
+            logging.info(test_examples[0])
+
 
             with open(res, "wb") as handle:
                 pickle.dump((train_examples, train_features, train_dataset, test_examples, test_features, test_dataset), handle)
@@ -277,7 +310,7 @@ class BaseDataManager(ABC):
                 logging.info('----- Test Example -----')
                 logging.info(test_data['X'][0])
                 logging.info(test_data['y'][0])
-                print(len(test_data['X']))
+                logging.info(len(test_data['X']))
                 
                 train_examples, train_features, train_dataset = self.preprocessor.transform(
                     **train_data, index_list=train_index_list)

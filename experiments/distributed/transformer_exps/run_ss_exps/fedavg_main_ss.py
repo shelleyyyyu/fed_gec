@@ -109,7 +109,8 @@ if __name__ == "__main__":
                                  "partition_method": args.partition_method,
                                  "dataset": args.dataset,
                                  "output_dir": args.output_dir,
-                                 "is_debug_mode": args.is_debug_mode
+                                 "is_debug_mode": args.is_debug_mode,
+                                 "num_beams": args.num_beams
                                  })
     # print('-'*5 + 'model_args' + '-'*5)
     # print(model_args)

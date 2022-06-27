@@ -16,19 +16,6 @@ from transformers.modeling_bart import shift_tokens_right
 logger = logging.getLogger(__name__)
 
 
-def preprocess_data(data):
-    input_text, target_text, encoder_tokenizer, decoder_tokenizer, args = data
-
-    input_text = encoder_tokenizer.encode(
-        input_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
-    )
-
-    target_text = decoder_tokenizer.encode(
-        target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
-    )
-    return (torch.flatten(input_text), torch.flatten(target_text))
-
-
 class Seq2SeqDataset(Dataset):
     def __init__(self, encoder_tokenizer, decoder_tokenizer, args, data, mode):
         cached_features_file = os.path.join(
@@ -72,15 +59,62 @@ class Seq2SeqDataset(Dataset):
     def __getitem__(self, index):
         return self.examples[index]
 
+def preprocess_data(data):
+    input_text, target_text, encoder_tokenizer, decoder_tokenizer, args = data
+    #logging.info(input_text)
+    #logging.info(target_text)
+    input_text = encoder_tokenizer.encode(
+        input_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+    )
+
+    target_text = decoder_tokenizer.encode(
+        target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+    )
+
+    return (torch.flatten(input_text), torch.flatten(target_text))
 
 def preprocess_data_bart(data):
     input_text, target_text, tokenizer, args = data
+    logging.info(input_text)
+    logging.info(target_text)
+    logging.info(tokenizer)
     input_ids = tokenizer[0].batch_encode_plus(
         [input_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
     )
     target_ids = tokenizer[1].batch_encode_plus(
         [target_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
     )
+
+    return {
+        "source_ids": input_ids["input_ids"].squeeze(),
+        "source_mask": input_ids["attention_mask"].squeeze(),
+        "target_ids": target_ids["input_ids"].squeeze(),
+    }
+
+def preprocess_data_bart_zh(data):
+    input_text, target_text, tokenizer, args = data
+    input_ids = tokenizer.batch_encode_plus(
+        [input_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+    )
+    target_ids = tokenizer.batch_encode_plus(
+        [target_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+    )
+    
+    return {
+        "source_ids": input_ids["input_ids"].squeeze(),
+        "source_mask": input_ids["attention_mask"].squeeze(),
+        "target_ids": target_ids["input_ids"].squeeze(),
+    }
+
+def preprocess_data_t5_zh(data):
+    input_text, target_text, tokenizer, args = data
+    input_ids = tokenizer.batch_encode_plus(
+        [input_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+    )
+    target_ids = tokenizer.batch_encode_plus(
+        [target_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+    )
+    
     return {
         "source_ids": input_ids["input_ids"].squeeze(),
         "source_mask": input_ids["attention_mask"].squeeze(),
@@ -132,14 +166,22 @@ class SimpleSummarizationDataset(Dataset):
             with open(cached_features_file, "rb") as handle:
                 self.examples = pickle.load(handle)
         else:
-            logger.info(" Creating features")
+            logger.info("Creating features")
 
             data = [
                 (d.input_text, d.target_text, tokenizer, args)
                 for d in data
             ]
 
-            preprocess_fn = preprocess_data_mbart if args.model_type == "mbart" else preprocess_data_bart
+            #preprocess_fn = preprocess_data_mbart 
+            if args.model_type == "mbart":
+                preprocess_fn = preprocess_data_mbart 
+            elif args.model_type == "bart_zh":
+                preprocess_fn = preprocess_data_bart_zh
+            elif args.model_type == "t5_zh":
+                preprocess_fn = preprocess_data_t5_zh
+            else:
+                preprocess_fn = preprocess_data_bart
 
             if args.use_multiprocessing:
                 logging.info("process count %d" % args.process_count)

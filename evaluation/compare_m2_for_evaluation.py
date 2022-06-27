@@ -1,5 +1,6 @@
 import argparse
 from collections import Counter
+import logging
 
 def calculate_score(hyp_m2_list, ref_m2_list):
     assert len(hyp_m2_list) == len(ref_m2_list)
@@ -9,12 +10,19 @@ def calculate_score(hyp_m2_list, ref_m2_list):
     sents = zip(hyp_m2_list, ref_m2_list)
     for sent_id, sent in enumerate(sents):
         hyp_edits = simplify_edits(sent[0])
+        #logging.info(hyp_edits)
         ref_edits = simplify_edits(sent[1])
+        #logging.info(ref_edits)
         hyp_dict = process_edits(hyp_edits)
+        #logging.info(hyp_dict)
         ref_dict = process_edits(ref_edits)
+        #logging.info(ref_dict)
         count_dict, cat_dict = evaluate_edits(hyp_dict, ref_dict, best_dict)
+        #logging.info(hyp_dict)
+        #logging.info(ref_dict)
         best_dict += Counter(count_dict)
     result = get_full_result(best_dict)
+    #logging.info(result)
     return result
 
 def simplify_edits(sent):

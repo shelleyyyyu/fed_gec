@@ -28,7 +28,7 @@ from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
 from evaluation.e_modules.annotator import Annotator as EvalAnnotator
 from evaluation.compare_m2_for_evaluation import calculate_score
 
-class Seq2SeqTrainer:
+class Seq2SeqRLTrainer:
     def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None):
         self.args = args
         self.device = device
@@ -50,6 +50,14 @@ class Seq2SeqTrainer:
         eval_tokenizer = EvalTokenizer('word', self.device)
         eval_annotator = EvalAnnotator.create_default('word', 'first')
         self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
+        
+        # RL
+        self.SavedAction = namedtuple('SavedAction', ['log_prob', 'value']) 
+        self.policyOptimizer = optim.Adam(self.policy.parameters(), lr=3e-2)
+        self.criticOptimizer = optim.Adam(self.critic.parameters(), lr=3e-2)
+        self.eps = np.finfo(np.float32).eps.item()
+        self.gamma = gamma
+        torch.autograd.set_detect_anomaly(True)
         
 
     def set_data(self, train_dl, test_dl=None):
@@ -143,6 +151,11 @@ class Seq2SeqTrainer:
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
+        train_data_loss_list = []
+        train_data_list = []
+        train_data_f0_5 = 0.0
+        train_data_recall = 0.0
+        train_data_precision = 0.0
 
         if args.fp16:
             from torch.cuda import amp
@@ -166,6 +179,32 @@ class Seq2SeqTrainer:
                     outputs = self.model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]
+                if epoch == (args.epochs-1):
+                    loss_list = outputs[1]
+                    train_data_loss_list.extend(loss_list)
+                    input_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
+                                                                clean_up_tokenization_spaces=True).strip() 
+                                  for g in inputs['input_ids']]
+                    summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
+                                                  max_length=self.args.max_seq_length, early_stopping=True)
+                    predict_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
+                                                                  clean_up_tokenization_spaces=True).strip() 
+                                    for g in summary_ids]
+                    output_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
+                                                                 clean_up_tokenization_spaces=True).strip() 
+                                   for g in inputs['decoder_input_ids']]
+                    hyp_input_sents, ref_input_sents = [], []
+                    for i in range(len(input_list)):
+                        hyp_input_sents.append([input_list[i], predict_list[i]])
+                        ref_input_sents.append([input_list[i], output_list[i]])
+                    hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
+                    ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
+                    result = calculate_score(hyp_annotations, ref_annotations)
+                    train_data_f0_5 += result['f0_5']
+                    train_data_recall += result['recall']
+                    train_data_precision += result['precision']
+                    train_data_list.extend(input_list)
+
                 
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -211,8 +250,24 @@ class Seq2SeqTrainer:
                         results, _ = self.eval_model(epoch, global_step)
                         logging.info(results)
                         
+            # Evaluate to do rl and da
+            logging.info(tr_loss)
+            logging.info(train_data_f0_5)
+            logging.info(train_data_recall)
+            logging.info(train_data_precision)
+            observations = torch.stack([tr_loss, train_data_f0_5, train_data_recall, train_data_precision])
+            logging.info(observations)
+            
+            exit()
+            
+            train_data_loss_list = []
+            train_data_list = []
+            train_data_f0_5 = 0.0
+            train_data_recall = 0.0
+            train_data_precision = 0.0
+            
 
-        return global_step, tr_loss / global_step
+        return global_step, tr_loss / global_step#, train_data_loss_list, train_data_list, train_data_f0_5 / global_step, train_data_recall / global_step, train_data_precision / global_step
 
     def eval_model(self, epoch=0, global_step=0, device=None):
         if not device:
@@ -244,7 +299,6 @@ class Seq2SeqTrainer:
         self.model.to(device)
         self.model.eval()
         logging.info("len(test_dl) = %d, n_batches = %d" % (len(self.test_dl), n_batches))
-        logging.info('----- Evaluation Examples -----')
         for i, batch in enumerate(self.test_dl):
             # batch = tuple(t for t in batch)
             inputs = self._get_inputs_dict(batch)
@@ -258,10 +312,11 @@ class Seq2SeqTrainer:
                 gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
 
                 if i == 0:
-                    logging.info('X: ' + wrong_tag_list[0])
-                    logging.info('Y: ' + gold_tag_list[0])
-                    logging.info('P: ' + pred_tag_list[0])
-                
+                    logging.info('----- Evaluation Examples -----')
+                    logging.info(wrong_tag_list[0])
+                    logging.info(gold_tag_list[0])
+                    logging.info(pred_tag_list[0])
+            
                 hyp_input_sents, ref_input_sents = [], []
                 for j in range(len(wrong_tag_list)):
                     hyp_input_sents.append([wrong_tag_list[j], pred_tag_list[j]])
@@ -282,8 +337,7 @@ class Seq2SeqTrainer:
             start_index = self.args.eval_batch_size * i
 
             end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else test_sample_len
-            if i%500 == 0:
-                logging.info("batch index = %d" % (i))
+            logging.info("batch index = %d, start_index = %d, end_index = %d" % (i, start_index, end_index))
 
         eval_loss = eval_loss / nb_eval_steps
         f0_5_score = f0_5_score / nb_eval_steps
@@ -308,6 +362,15 @@ class Seq2SeqTrainer:
         self.results.update(result)
 
         model_preds = None
+
+        # if self.args.evaluate_generated_text:
+        # to_predict = [ex.input_text for ex in self.test_dl.examples]
+        # references = [ex.target_text for ex in self.test_dl.examples]
+        # model_preds = self.predict(to_predict)
+
+        # TODO: compute ROUGE/BLUE/ scores here.
+        # result = self.compute_metrics(references, model_preds)
+        # self.results.update(result)
             
         logging.info(self.results)
 
@@ -356,18 +419,6 @@ class Seq2SeqTrainer:
                 "input_ids": batch[0].to(device),
                 "decoder_input_ids": lm_labels.to(device),
                 "labels": lm_labels_masked.to(device),
-            } 
-        elif self.args.model_type in ["bart_zh"]:
-            pad_token_id = self.encoder_tokenizer.pad_token_id
-            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
-            y_ids = y[:, :-1].contiguous()
-            lm_labels = y[:, 1:].clone()
-            lm_labels[y[:, 1:] == pad_token_id] = -100
-            inputs = {
-                "input_ids": source_ids.to(device),
-                "attention_mask": source_mask.to(device),
-                "decoder_input_ids": y_ids.to(device),
-                "labels": lm_labels.to(device),
             }
         else:
             lm_labels = batch[1]

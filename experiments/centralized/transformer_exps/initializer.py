@@ -1,5 +1,5 @@
 import random
-
+import logging
 import numpy as np
 import torch
 from transformers import (
@@ -11,10 +11,37 @@ from transformers import (
     DistilBertTokenizer,
     DistilBertForTokenClassification,
     DistilBertForQuestionAnswering,
-    BartConfig, 
-    BartForConditionalGeneration, 
-    BartTokenizer,
+#     BartConfig, 
+#     BartForConditionalGeneration, 
+#     BartTokenizer,
+#     T5ForConditionalGeneration, 
+#     T5Tokenizer,
+#     T5Config,
+#     BertLMHeadModel,
+#     RobertaForCausalLM,
+#     RobertaTokenizer,
+#     RobertaConfig
 )
+
+# BART
+from modeling_transformers.modeling_bart import BartForConditionalGeneration
+from modeling_transformers.tokenization_bart import BartTokenizer
+from modeling_transformers.configuration_bart import BartConfig
+
+# T5
+from modeling_transformers.modeling_t5 import T5ForConditionalGeneration
+from modeling_transformers.tokenization_t5 import T5Tokenizer
+from modeling_transformers.configuration_t5 import T5Config
+
+# BERTLM
+from modeling_transformers.modeling_bert import BertLMHeadModel
+from modeling_transformers.tokenization_bert import BertTokenizer
+from modeling_transformers.configuration_bert import BertConfig
+
+#RobertaLM
+from modeling_transformers.modeling_roberta import RobertaForCausalLM
+from modeling_transformers.tokenization_roberta import RobertaTokenizer
+from modeling_transformers.configuration_roberta import RobertaConfig
 
 from model.transformer.bert_model import BertForSequenceClassification
 from model.transformer.distilbert_model import DistilBertForSequenceClassification
@@ -39,15 +66,21 @@ def create_model(args, formulation="classification"):
         },
         "seq2seq": {
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+            "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
+            "t5_zh": (T5Config, T5ForConditionalGeneration, BertTokenizer),
+            "bert_lm_zh": (BertConfig, BertLMHeadModel, BertTokenizer),
+            "roberta_lm_zh": (RobertaConfig, RobertaForCausalLM, BertTokenizer),
         }
     }
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
         args.model_type]
-
-    # config = config_class.from_pretrained(
-    #     args.model_name, num_labels=args.num_labels, **args.config)
+    
     config = config_class.from_pretrained(args.model_name, **args.config)
+    if args.model_type == "bert_lm_zh" or args.model_type == "roberta_lm_zh":
+        config.is_decoder = True
+   
     model = model_class.from_pretrained(args.model_name, config=config)
+    
     if formulation != "seq2seq":
         tokenizer = tokenizer_class.from_pretrained(
             args.model_name, do_lower_case=args.do_lower_case)
@@ -56,7 +89,11 @@ def create_model(args, formulation="classification"):
         tokenizer[0] = tokenizer_class.from_pretrained(args.model_name)
         tokenizer[1]= tokenizer[0]
     
-    # logging.info(self.model)
+    logging.info('Pretrain Model Name: %s' %(str(args.model_name)))
+    logging.info('Config Class: %s' %(str(config_class)))
+    logging.info('Model Class: %s' %(str(model_class)))
+    logging.info('Tokenizer Class: %s' %(str(tokenizer_class)))
+    
     return config, model, tokenizer
 
 
@@ -119,6 +156,8 @@ def add_centralized_args(parser):
 
     parser.add_argument('--max_seq_length', type=int, default=128, metavar='N',
                         help='maximum sequence length (default: 128)')
+    parser.add_argument('--max_length', type=int, default=128, metavar='N',
+                        help='maximum length (default: 128)')
 
     parser.add_argument(
         '--learning_rate', type=float, default=1e-5, metavar='LR',
@@ -152,5 +191,9 @@ def add_centralized_args(parser):
     # freeze related
     parser.add_argument('--freeze_layers', type=str, default='', metavar='N',
                         help='freeze which layers')
+    
+    # rl related
+    parser.add_argument('--use_rl',  action='store_true',
+                        help='whether using rl to generate synthetic data')
 
     return parser

@@ -26,6 +26,7 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
+import torch.nn.functional as F
 
 from .activations import ACT2FN
 from .configuration_bert import BertConfig
@@ -999,6 +1000,7 @@ class BertLMHeadModel(BertPreTrainedModel):
     def forward(
         self,
         input_ids=None,
+        decoder_input_ids=None,
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
@@ -1061,22 +1063,39 @@ class BertLMHeadModel(BertPreTrainedModel):
 
         sequence_output = outputs[0]
         prediction_scores = self.cls(sequence_output)
-
+        lm_logits = prediction_scores
+        predictions = F.softmax(prediction_scores, dim=-1)
+        
         lm_loss = None
         if labels is not None:
-            # we are doing next-token prediction; shift prediction scores and input ids by one
-            shifted_prediction_scores = prediction_scores[:, :-1, :].contiguous()
-            labels = labels[:, 1:].contiguous()
-            loss_fct = CrossEntropyLoss()
-            lm_loss = loss_fct(shifted_prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
-
+            loss = F.cross_entropy(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
+            loss_list = F.cross_entropy(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1), reduction='none')
+            loss_list = loss_list.view(predictions.size()[0], predictions.size()[1])
+            mean_loss_list = []
+            for losses in loss_list:
+                mean_loss_list.append(torch.mean(torch.stack([score for score in losses if score > 0.0]), dim=-1))
+            mean_loss_list = torch.stack(mean_loss_list)
+            mean_loss_list = mean_loss_list.tolist()
+        
+        #lm_loss = None
+        #if labels is not None:
+        #    # we are doing next-token prediction; shift prediction scores and input ids by one
+        #    shifted_prediction_scores = prediction_scores[:, :-1, :].contiguous()
+        #    labels = labels[:, 1:].contiguous()
+        #    loss_fct = CrossEntropyLoss()
+        #    lm_loss = loss_fct(shifted_prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+        #
+        #if not return_dict:
+        #    output = (prediction_scores,) + outputs[2:]
+        #    return ((lm_loss,) + output) if lm_loss is not None else output
+        
         if not return_dict:
-            output = (prediction_scores,) + outputs[2:]
-            return ((lm_loss,) + output) if lm_loss is not None else output
+            output = (lm_logits,) + outputs[1:]
+            return ((loss, mean_loss_list) + output) if loss is not None else output
 
         return CausalLMOutputWithCrossAttentions(
             loss=lm_loss,
-            logits=prediction_scores,
+            logits=lm_logits, #prediction_scores,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
             cross_attentions=outputs.cross_attentions,
@@ -1089,7 +1108,12 @@ class BertLMHeadModel(BertPreTrainedModel):
         if attention_mask is None:
             attention_mask = input_ids.new_ones(input_shape)
 
-        return {"input_ids": input_ids, "attention_mask": attention_mask}
+        #return {"input_ids": input_ids, "attention_mask": attention_mask, "decoder_input_ids": input_ids}
+        return {
+                "input_ids": input_ids,
+                "decoder_input_ids": decoder_input_ids,
+                "attention_mask": attention_mask
+            }
 
 
 @add_start_docstrings("""Bert Model with a `language modeling` head on top. """, BERT_START_DOCSTRING)

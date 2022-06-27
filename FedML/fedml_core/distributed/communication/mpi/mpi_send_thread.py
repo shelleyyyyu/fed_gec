@@ -5,7 +5,7 @@ import time
 import traceback
 
 from ..message import Message
-
+import sys
 
 class MPISendThread(threading.Thread):
     def __init__(self, comm, rank, size, name, q):
@@ -24,6 +24,9 @@ class MPISendThread(threading.Thread):
                 if not self.q.empty():
                     msg = self.q.get()
                     dest_id = msg.get(Message.MSG_ARG_KEY_RECEIVER)
+                    logging.info(msg)
+                    logging.info('dest_id: %s'%str(dest_id))
+                    logging.info('msg size: %s' %str(sys.getsizeof(msg.to_string())))
                     self.comm.send(msg.to_string(), dest=dest_id)
                 else:
                     time.sleep(0.003)

@@ -1055,7 +1055,7 @@ class BartForConditionalGeneration(PretrainedBartModel):
             )
             past_key_values = unused.pop("decoder_past_key_values")
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+        
         if labels is not None:
             use_cache = False
             if decoder_input_ids is None:

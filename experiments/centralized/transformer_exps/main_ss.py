@@ -21,6 +21,7 @@ from data_manager.seq2seq_data_manager import Seq2SeqDataManager
 
 from model.transformer.model_args import Seq2SeqArgs
 from training.ss_transformer_trainer import Seq2SeqTrainer
+from training.ss_transformer_trainer_rl import Seq2SeqRLTrainer
 from experiments.centralized.transformer_exps.initializer import set_seed, add_centralized_args, create_model
  
 
@@ -68,6 +69,7 @@ if __name__ == "__main__":
                               "reprocess_input_data": args.reprocess_input_data, # True for ignoring the cache features.
                               "overwrite_output_dir": True,
                               "max_seq_length": args.max_seq_length,
+                              "max_length": args.max_length,
                               "train_batch_size": args.train_batch_size,
                               "eval_batch_size": args.eval_batch_size,
                               "evaluate_during_training_steps": args.evaluate_during_training_steps,
@@ -78,7 +80,8 @@ if __name__ == "__main__":
                               "dataset": args.dataset,
                               "output_dir": args.output_dir,
                               "is_debug_mode": args.is_debug_mode,
-                              "num_beams": 3
+                              "num_beams": 3,
+                              "use_rl": args.use_rl,
                               })
     print('-' * 10)
     print('model_args', model_args)
@@ -94,11 +97,19 @@ if __name__ == "__main__":
     num_workers = 1
     dm = Seq2SeqDataManager(args, model_args, preprocessor)
     train_dl, test_dl = dm.load_centralized_data() # cut_off = 1 for each client.
-
     # Create a Seq2Seq Trainer and start train
-    trainer = Seq2SeqTrainer(model_args, device, model, train_dl, test_dl, tokenizer)
-    trainer.train_model()
-    trainer.eval_model()
+    logging.info(str(args.use_rl))
+
+    if str(args.use_rl) == 'False':
+        logging.info('Train with Seq2SeqTrainer')
+        trainer = Seq2SeqTrainer(model_args, device, model, train_dl, test_dl, tokenizer)
+        trainer.train_model()
+        trainer.eval_model()
+    else:
+        logging.info('Train with Seq2SeqRLTrainer')
+        rl_trainer = Seq2SeqRLTrainer(model_args, device, model, train_dl, test_dl, tokenizer)
+        rl_trainer.train_model()
+        rl_trainer.eval_model()
     
 
 ''' Example Usage:
