@@ -1,5 +1,6 @@
 import os
 import logging
+import pkuseg
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -8,6 +9,7 @@ class Evaluator:
     def __init__(self, tokenizer, annotator):
         self.tokenizer = tokenizer
         self.annotator = annotator
+        self.seg = pkuseg.pkuseg(postag=True)
 
     def annotate(self, sent_list, sentence_to_tokenized):
         """
@@ -58,6 +60,9 @@ class Evaluator:
                 batch.append(sent)
             if count % batch_size == 0:
                 results = self.tokenizer(batch)
+                logging.info(self.tokenizer(sent))
+                logging.info(self.seg.cut(sent))
+                exit()
                 for s, r in zip(batch, results):
                     sentence_to_tokenized[s] = r  # Get tokenization map.
                 batch = []

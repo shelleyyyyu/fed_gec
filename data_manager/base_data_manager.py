@@ -157,7 +157,6 @@ class BaseDataManager(ABC):
             logging.info('----- Test Example -----')
             logging.info(test_data['X'][0])
             logging.info(test_data['y'][0])
-            logging.info(len(test_data['X']))
             
             data_file.close()
             partition_file.close()
@@ -169,8 +168,17 @@ class BaseDataManager(ABC):
             logging.info('----- Train Features -----')
             logging.info(train_features[0])
             logging.info('----- Test Features -----')
-            logging.info(test_examples[0])
-
+            logging.info(test_features[0])
+            
+#             for i in range(len(test_features)):
+#                 logging.info(test_data['X'][i])
+#                 logging.info(test_data['y'][i])
+#                 logging.info(test_features[i]['source_ids'])
+#                 logging.info(test_features[i]['target_ids'])
+#                 logging.info(test_dataset[i]['source_ids'])
+#                 logging.info(test_dataset[i]['source_mask'])
+#                 logging.info(test_dataset[i]['target_ids'])
+#                 logging.info('-'*20)
 
             with open(res, "wb") as handle:
                 pickle.dump((train_examples, train_features, train_dataset, test_examples, test_features, test_dataset), handle)

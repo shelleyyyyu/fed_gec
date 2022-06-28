@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 import sys
-
+import pickle
 import numpy as np
 import torch
 # this is a temporal import, we will refactor FedML as a package installation
@@ -99,15 +99,20 @@ if __name__ == "__main__":
     train_dl, test_dl = dm.load_centralized_data() # cut_off = 1 for each client.
     # Create a Seq2Seq Trainer and start train
     logging.info(str(args.use_rl))
+    
+    # Load test edit
+    file = open("./data/test_edits.pickle",'rb')
+    test_edits_dict = pickle.load(file)
+    logging.info('Test Edits loaded: %d sents' %len(test_edits_dict))
 
     if str(args.use_rl) == 'False':
         logging.info('Train with Seq2SeqTrainer')
-        trainer = Seq2SeqTrainer(model_args, device, model, train_dl, test_dl, tokenizer)
+        trainer = Seq2SeqTrainer(model_args, device, model, train_dl, test_dl, tokenizer, test_edits_dict=test_edits_dict)
         trainer.train_model()
         trainer.eval_model()
     else:
         logging.info('Train with Seq2SeqRLTrainer')
-        rl_trainer = Seq2SeqRLTrainer(model_args, device, model, train_dl, test_dl, tokenizer)
+        rl_trainer = Seq2SeqRLTrainer(model_args, device, model, train_dl, test_dl, tokenizer, test_edits_dict=test_edits_dict)
         rl_trainer.train_model()
         rl_trainer.eval_model()
     

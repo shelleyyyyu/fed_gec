@@ -1,5 +1,8 @@
 cache_dir
 wandb
+bart_zh_centralized_cache
+data/test_edits.pickle
+nohup.out
 *.pyc
 FedOPT_nlpcc_output
 fednlp_data

@@ -75,9 +75,6 @@ def preprocess_data(data):
 
 def preprocess_data_bart(data):
     input_text, target_text, tokenizer, args = data
-    logging.info(input_text)
-    logging.info(target_text)
-    logging.info(tokenizer)
     input_ids = tokenizer[0].batch_encode_plus(
         [input_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
     )
@@ -179,6 +176,8 @@ class SimpleSummarizationDataset(Dataset):
             elif args.model_type == "bart_zh":
                 preprocess_fn = preprocess_data_bart_zh
             elif args.model_type == "t5_zh":
+                preprocess_fn = preprocess_data_t5_zh
+            elif args.model_type == "bertlm_zh":
                 preprocess_fn = preprocess_data_t5_zh
             else:
                 preprocess_fn = preprocess_data_bart

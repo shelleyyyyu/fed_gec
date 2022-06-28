@@ -7,6 +7,7 @@ import copy
 import logging
 import math
 import os
+import pkuseg
 
 import numpy as np
 import torch
@@ -27,9 +28,10 @@ from operator import itemgetter
 from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
 from evaluation.e_modules.annotator import Annotator as EvalAnnotator
 from evaluation.compare_m2_for_evaluation import calculate_score
+import evaluation.m2score.levenshtein as levenshtein
 
 class Seq2SeqTrainer:
-    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None):
+    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None, test_edits_dict=None):
         self.args = args
         self.device = device
 
@@ -51,6 +53,13 @@ class Seq2SeqTrainer:
         eval_annotator = EvalAnnotator.create_default('word', 'first')
         self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
         
+        self.test_edits_dict = test_edits_dict
+        self.max_unchanged_words=2
+        self.beta = 0.5
+        self.ignore_whitespace_casing= False
+        self.verbose = False
+        self.very_verbose = False
+        self.seg = pkuseg.pkuseg()
 
     def set_data(self, train_dl, test_dl=None):
         # Used for fedtrainer
@@ -253,31 +262,60 @@ class Seq2SeqTrainer:
                 tmp_eval_loss = outputs[0]
                 summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
                                                   max_length=self.args.max_seq_length, early_stopping=True)
-                wrong_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['input_ids']]
-                pred_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in summary_ids]
-                gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
+                wrong_tag_list = [''.join(self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).split(' ')).strip() for g in inputs['input_ids']]
+                pred_tag_list = [''.join(self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).split(' ')).strip() for g in summary_ids]
 
                 if i == 0:
                     logging.info('X: ' + wrong_tag_list[0])
                     logging.info('Y: ' + gold_tag_list[0])
                     logging.info('P: ' + pred_tag_list[0])
                 
-                hyp_input_sents, ref_input_sents = [], []
-                for j in range(len(wrong_tag_list)):
-                    hyp_input_sents.append([wrong_tag_list[j], pred_tag_list[j]])
-                    ref_input_sents.append([wrong_tag_list[j], gold_tag_list[j]])
-                hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
-                ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
-                result = calculate_score(hyp_annotations, ref_annotations)
-                f0_5_score += result['f0_5']
-                precision_score += result['precision']
-                recall_score += result['recall']
+                #hyp_input_sents, ref_input_sents = [], []
+                #for j in range(len(wrong_tag_list)):
+                #    hyp_input_sents.append([wrong_tag_list[j], pred_tag_list[j]])
+                #    ref_input_sents.append([wrong_tag_list[j], gold_tag_list[j]])
+                #hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
+                #ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
+                #result = calculate_score(hyp_annotations, ref_annotations)
+                #f0_5_score += result['f0_5']
+                #precision_score += result['precision']
+                #recall_score += result['recall']
+                
+                system_sentences, source_sentences, gold_edits = [], [], []
+                for i in range(len(pred_tag_list)):
+                    sent = wrong_tag_list[i]
+                    if sent.replace(':', '：') in self.test_edits_dict:
+                        #system_sentences = [' '.join(self.seg.cut(pred)) for pred in pred_tag_list]
+                        system_sentences.append(' '.join(self.seg.cut(pred_tag_list[i])))
+                        #source_sentences = [self.test_edits_dict[sent.replace(':', '：')][0] for sent in wrong_tag_list]
+                        source_sentences.append(self.test_edits_dict[sent.replace(':', '：')][0])
+                        #gold_edits = [self.test_edits_dict[sent.replace(':', '：')][1] for sent in wrong_tag_list]
+                        gold_edits.append(self.test_edits_dict[sent.replace(':', '：')][1])
+                logging.info(len(system_sentences))
+                logging.info(len(source_sentences))
+                logging.info(len(gold_edits))
+                assert len(system_sentences) == len(source_sentences) == len(gold_edits)
+                
+                #for i in range(len(system_sentences)):
+                #    logging.info(system_sentences[i])
+                #    logging.info(source_sentences[i])
+                #    logging.info('-'*20)
+
+                p, r, f05 = levenshtein.batch_multi_pre_rec_f1(system_sentences, source_sentences, gold_edits,
+                                                              self.max_unchanged_words, self.beta, 
+                                                              self.ignore_whitespace_casing, self.verbose, 
+                                                              self.very_verbose)
+
+                f0_5_score += f05
+                precision_score += p
+                recall_score += r
+                
                 # logits = output[0]
                 # loss_fct = CrossEntropyLoss()
                 # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
                 eval_loss += tmp_eval_loss.item()
                 # logging.info("test. batch index = %d, loss = %s" % (i, str(eval_loss)))
-
+                exit()
             nb_eval_steps += 1
             start_index = self.args.eval_batch_size * i
 
@@ -363,6 +401,7 @@ class Seq2SeqTrainer:
             y_ids = y[:, :-1].contiguous()
             lm_labels = y[:, 1:].clone()
             lm_labels[y[:, 1:] == pad_token_id] = -100
+            
             inputs = {
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),

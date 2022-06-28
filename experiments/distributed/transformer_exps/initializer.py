@@ -88,20 +88,20 @@ def create_model(args, formulation="classification"):
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
         args.model_type]
     
-    config = config_class.from_pretrained(args.model_name, **args.config)
+    config = config_class.from_pretrained(args.model_name, **args.config, cache_dir=args.model_type+'_distributed_cache')
     if args.model_type == "bert_lm_zh" or args.model_type == "roberta_lm_zh":
         config.is_decoder = True
     
     if formulation != "seq2seq":
         tokenizer = tokenizer_class.from_pretrained(
-            args.model_name, do_lower_case=args.do_lower_case)
+            args.model_name, do_lower_case=args.do_lower_case, cache_dir=args.model_type+'_distributed_cache')
     else:
         tokenizer = [None, None]
-        tokenizer[0] = tokenizer_class.from_pretrained(args.model_name)
+        tokenizer[0] = tokenizer_class.from_pretrained(args.model_name, cache_dir=args.model_type+'_distributed_cache')
         tokenizer[1]= tokenizer[0]
         
 
-    model = model_class.from_pretrained(args.model_name, config=config)
+    model = model_class.from_pretrained(args.model_name, config=config, cache_dir=args.model_type+'_distributed_cache')
     
     logging.info('Pretrain Model Name: %s' %(str(args.model_name)))
     logging.info('Config Class: %s' %(str(config_class)))
