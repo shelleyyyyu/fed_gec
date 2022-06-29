@@ -96,11 +96,33 @@ def preprocess_data_bart_zh(data):
     target_ids = tokenizer.batch_encode_plus(
         [target_text], max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
     )
+    #import re
+
+    #def get_word_list(s):
+    #    p = re.compile(r"([\u4e00-\u9fa5 ])") 
+    #    word_list = p.split(s)
+    #    return [w for w in word_list if w != '' and w != ' ' and w != '\u200b']
     
+    #input_text = get_word_list(input_text)
+    #logging.info(input_text)
+    #logging.info(len(input_text))
+    #enocde_list = [i.item() for i in input_ids["input_ids"][0] if i.item() != 0 and i.item() != 101 and i.item() != 102]
+    #logging.info(enocde_list)
+    #logging.info(len(enocde_list))
+    #decode_list = tokenizer.decode(input_ids["input_ids"][0], skip_special_tokens=False, clean_up_tokenization_spaces=False)
+    #decode_list = [i for i in decode_list.split(' ') if i != '[SEP]' and i != '[CLS]' and i != '[PAD]']
+    #logging.info(decode_list)
+    #logging.info(len(decode_list))
+    #logging.info('='*20)
+    #unk_list = []
+    #for idx in range(len(input_text)):
+    #    if list(decode_list)[idx] == '[UNK]':
+    #        unk_list.append(list(input_text)[idx])
     return {
         "source_ids": input_ids["input_ids"].squeeze(),
         "source_mask": input_ids["attention_mask"].squeeze(),
-        "target_ids": target_ids["input_ids"].squeeze(),
+        "target_ids": target_ids["input_ids"].squeeze()
+        #"unk_list": unk_list
     }
 
 def preprocess_data_t5_zh(data):

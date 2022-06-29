@@ -51,14 +51,6 @@ class Seq2SeqRLTrainer:
         eval_annotator = EvalAnnotator.create_default('word', 'first')
         self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
         
-        # RL
-        self.SavedAction = namedtuple('SavedAction', ['log_prob', 'value']) 
-        self.policyOptimizer = optim.Adam(self.policy.parameters(), lr=3e-2)
-        self.criticOptimizer = optim.Adam(self.critic.parameters(), lr=3e-2)
-        self.eps = np.finfo(np.float32).eps.item()
-        self.gamma = gamma
-        torch.autograd.set_detect_anomaly(True)
-        
 
     def set_data(self, train_dl, test_dl=None):
         # Used for fedtrainer
@@ -249,25 +241,9 @@ class Seq2SeqRLTrainer:
                                                                and global_step % self.args.evaluate_during_training_steps == 0):
                         results, _ = self.eval_model(epoch, global_step)
                         logging.info(results)
-                        
-            # Evaluate to do rl and da
-            logging.info(tr_loss)
-            logging.info(train_data_f0_5)
-            logging.info(train_data_recall)
-            logging.info(train_data_precision)
-            observations = torch.stack([tr_loss, train_data_f0_5, train_data_recall, train_data_precision])
-            logging.info(observations)
-            
-            exit()
-            
-            train_data_loss_list = []
-            train_data_list = []
-            train_data_f0_5 = 0.0
-            train_data_recall = 0.0
-            train_data_precision = 0.0
             
 
-        return global_step, tr_loss / global_step#, train_data_loss_list, train_data_list, train_data_f0_5 / global_step, train_data_recall / global_step, train_data_precision / global_step
+        return global_step, tr_loss / global_step, train_data_loss_list, train_data_list, train_data_f0_5 / global_step, train_data_recall / global_step, train_data_precision / global_step
 
     def eval_model(self, epoch=0, global_step=0, device=None):
         if not device:
@@ -337,7 +313,8 @@ class Seq2SeqRLTrainer:
             start_index = self.args.eval_batch_size * i
 
             end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else test_sample_len
-            logging.info("batch index = %d, start_index = %d, end_index = %d" % (i, start_index, end_index))
+            if i % 100 == 0:
+                logging.info("batch index = %d" % (i))
 
         eval_loss = eval_loss / nb_eval_steps
         f0_5_score = f0_5_score / nb_eval_steps
@@ -419,6 +396,19 @@ class Seq2SeqRLTrainer:
                 "input_ids": batch[0].to(device),
                 "decoder_input_ids": lm_labels.to(device),
                 "labels": lm_labels_masked.to(device),
+            }
+        elif self.args.model_type in ["bart_zh", "t5_zh"]:
+            pad_token_id = self.encoder_tokenizer.pad_token_id
+            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
+            y_ids = y[:, :-1].contiguous()
+            lm_labels = y[:, 1:].clone()
+            lm_labels[y[:, 1:] == pad_token_id] = -100
+            
+            inputs = {
+                "input_ids": source_ids.to(device),
+                "attention_mask": source_mask.to(device),
+                "decoder_input_ids": y_ids.to(device),
+                "labels": lm_labels.to(device),
             }
         else:
             lm_labels = batch[1]

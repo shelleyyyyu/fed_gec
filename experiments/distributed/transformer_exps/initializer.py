@@ -45,6 +45,8 @@ from FedML.fedml_api.distributed.fedprox.FedProxAPI import FedML_FedProx_distrib
 from model.transformer.bert_model import BertForSequenceClassification
 from model.transformer.distilbert_model import DistilBertForSequenceClassification
 
+ADD_TOKEN_LIST = ['‘', '’', '“', '”、“', '两', '语', '校', '项', '”', '”。', '江', '很', '指', '播', '有', '没', '”，', '开', '这', '表', '舍', '你', '是', '”(', '缷', '搾', '喑', '问', '虽', '偘', '——', '鸡', '欢', '’。', '灭', '就', '赶', '光', '殚', '……”', '的', '歌', '……', '因', '世', '样', '对', '绐', '’，', '例', '我', '以', '不', '加', '本', '‘Blocking’', '演', '一', '他', '那', '李', '文', '“Hangul”。', '赤', '和', '东', '恶', '或', '邪', '’，‘', '苦', '“ReinaSopia”', '巴', '去', '看', '陈', '冻', '先', '哥', '爷', '安', '奶', '晚', '二', '好', '爸', '完', '妈', '明']
+
 
 def get_fl_algorithm_initializer(alg_name):
     if alg_name == "FedAvg":
@@ -97,8 +99,15 @@ def create_model(args, formulation="classification"):
             args.model_name, do_lower_case=args.do_lower_case, cache_dir=args.model_type+'_distributed_cache')
     else:
         tokenizer = [None, None]
-        tokenizer[0] = tokenizer_class.from_pretrained(args.model_name, cache_dir=args.model_type+'_distributed_cache')
-        tokenizer[1]= tokenizer[0]
+        pretrain_tokenizer = tokenizer_class.from_pretrained(args.model_name, cache_dir=args.model_type+'_distributed_cache')
+        logging.info(len(pretrain_tokenizer))
+        logging.info(len(ADD_TOKEN_LIST))
+        num_added_toks = pretrain_tokenizer.add_tokens(ADD_TOKEN_LIST)
+        logging.info('Added %d tokens', num_added_toks)
+        logging.info(len(pretrain_tokenizer))
+        model.resize_token_embeddings(len(pretrain_tokenizer))
+        tokenizer[0] = pretrain_tokenizer
+        tokenizer[1] = pretrain_tokenizer
         
 
     model = model_class.from_pretrained(args.model_name, config=config, cache_dir=args.model_type+'_distributed_cache')

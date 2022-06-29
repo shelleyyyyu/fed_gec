@@ -25,9 +25,9 @@ from transformers import (
 from evaluation.evaluate import Evaluator
 from operator import itemgetter
 # import bleurt 
-from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
-from evaluation.e_modules.annotator import Annotator as EvalAnnotator
-from evaluation.compare_m2_for_evaluation import calculate_score
+#from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
+#from evaluation.e_modules.annotator import Annotator as EvalAnnotator
+#from evaluation.compare_m2_for_evaluation import calculate_score
 import evaluation.m2score.levenshtein as levenshtein
 
 class Seq2SeqTrainer:
@@ -49,9 +49,9 @@ class Seq2SeqTrainer:
         # training results
         self.results = {}
         
-        eval_tokenizer = EvalTokenizer('word', self.device)
-        eval_annotator = EvalAnnotator.create_default('word', 'first')
-        self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
+        #eval_tokenizer = EvalTokenizer('word', self.device)
+        #eval_annotator = EvalAnnotator.create_default('word', 'first')
+        #self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
         
         self.test_edits_dict = test_edits_dict
         self.max_unchanged_words=2
@@ -267,7 +267,7 @@ class Seq2SeqTrainer:
 
                 if i == 0:
                     logging.info('X: ' + wrong_tag_list[0])
-                    logging.info('Y: ' + gold_tag_list[0])
+                    #logging.info('Y: ' + gold_tag_list[0])
                     logging.info('P: ' + pred_tag_list[0])
                 
                 #hyp_input_sents, ref_input_sents = [], []
@@ -282,18 +282,22 @@ class Seq2SeqTrainer:
                 #recall_score += result['recall']
                 
                 system_sentences, source_sentences, gold_edits = [], [], []
-                for i in range(len(pred_tag_list)):
-                    sent = wrong_tag_list[i]
-                    if sent.replace(':', '：') in self.test_edits_dict:
+                #logging.info(len(pred_tag_list))
+                for num in range(len(pred_tag_list)):
+                    sent = wrong_tag_list[num]
+                    if sent in self.test_edits_dict:
                         #system_sentences = [' '.join(self.seg.cut(pred)) for pred in pred_tag_list]
-                        system_sentences.append(' '.join(self.seg.cut(pred_tag_list[i])))
-                        #source_sentences = [self.test_edits_dict[sent.replace(':', '：')][0] for sent in wrong_tag_list]
-                        source_sentences.append(self.test_edits_dict[sent.replace(':', '：')][0])
-                        #gold_edits = [self.test_edits_dict[sent.replace(':', '：')][1] for sent in wrong_tag_list]
-                        gold_edits.append(self.test_edits_dict[sent.replace(':', '：')][1])
-                logging.info(len(system_sentences))
-                logging.info(len(source_sentences))
-                logging.info(len(gold_edits))
+                        system_sentences.append(' '.join(self.seg.cut(pred_tag_list[num])))
+                        #source_sentences = [self.test_edits_dict[sent][0] for sent in wrong_tag_list]
+                        source_sentences.append(self.test_edits_dict[sent][0])
+                        #gold_edits = [self.test_edits_dict[sent][1] for sent in wrong_tag_list]
+                        gold_edits.append(self.test_edits_dict[sent][1])
+                    else:
+                        logging.info('BIG WARNING FOR EVALUATION: Check ./training/ss_transformer_trainer.py line 296')
+                        logging.info(sent)
+                        logging.info('='*10)
+                #logging.info(len(system_sentences))
+
                 assert len(system_sentences) == len(source_sentences) == len(gold_edits)
                 
                 #for i in range(len(system_sentences)):
@@ -315,12 +319,11 @@ class Seq2SeqTrainer:
                 # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
                 eval_loss += tmp_eval_loss.item()
                 # logging.info("test. batch index = %d, loss = %s" % (i, str(eval_loss)))
-                exit()
             nb_eval_steps += 1
             start_index = self.args.eval_batch_size * i
 
             end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else test_sample_len
-            if i%500 == 0:
+            if i%100 == 0:
                 logging.info("batch index = %d" % (i))
 
         eval_loss = eval_loss / nb_eval_steps

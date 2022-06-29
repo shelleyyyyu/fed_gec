@@ -66,7 +66,7 @@ class TLMPreprocessor(BasePreprocessor):
             CustomDataset = args.dataset_class
             return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, examples, mode)
         else:
-            if args.model_type in ["bart", "mbart", "marian", "bart_zh", "t5_zh"]:
+            if args.model_type in ["bart", "mbart", "marian", "bart_zh", "_zh"]:
                 return SimpleSummarizationDataset(encoder_tokenizer, self.args, examples, mode)
             else:
                 return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, examples, mode,)

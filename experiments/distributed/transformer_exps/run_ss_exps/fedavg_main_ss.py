@@ -16,7 +16,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../")))
 
 from training.fed_trainer_transformer import FedTransformerTrainer
 from data_preprocessing.seq2seq_preprocessor import TLMPreprocessor
-from training.ss_transformer_trainer import Seq2SeqTrainer
+#from training.ss_transformer_trainer import Seq2SeqTrainer
+from training.ss_transformer_trainer_rl import Seq2SeqRLTrainer as Seq2SeqTrainer
 from model.transformer.model_args import Seq2SeqArgs
 from data_manager.seq2seq_data_manager import Seq2SeqDataManager
 from data_manager.base_data_manager import BaseDataManager

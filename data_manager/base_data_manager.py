@@ -170,6 +170,14 @@ class BaseDataManager(ABC):
             logging.info('----- Test Features -----')
             logging.info(test_features[0])
             
+#             unk_list = {}
+#             logging.info(len(test_dataset))
+#             for i in range(len(test_dataset)):
+#                 for unk in test_dataset[i]['unk_list']:
+#                     unk_list[unk] = len(unk_list) 
+#             logging.info(unk_list.keys())
+#             exit()
+            
 #             for i in range(len(test_features)):
 #                 logging.info(test_data['X'][i])
 #                 logging.info(test_data['y'][i])
