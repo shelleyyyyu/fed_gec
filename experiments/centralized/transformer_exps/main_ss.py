@@ -101,7 +101,7 @@ if __name__ == "__main__":
     logging.info(str(args.use_rl))
     
     # Load test edit
-    file = open("./data/test_edits.pickle",'rb')
+    file = open("./test_anno/test_edits.pickle",'rb')
     test_edits_dict = pickle.load(file)
     logging.info('Test Edits loaded: %d sents' %len(test_edits_dict))
 
