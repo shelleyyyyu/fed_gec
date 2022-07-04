@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import string
-
+import random
 import pandas as pd
 import torch
 from torch.utils.data import TensorDataset
@@ -36,6 +36,16 @@ class TLMPreprocessor(BasePreprocessor):
             index_list = [i for i in range(len(X))]
 
         examples = self.transform_examples(X, y, index_list)
+#         logging.info(examples[0].input_text)
+#         logging.info(examples[0].target_text)
+#         logging.info(examples[1].input_text)
+#         logging.info(examples[2].input_text)
+        random.shuffle(examples)
+#         logging.info(examples[0].input_text)
+#         logging.info(examples[0].target_text)
+#         logging.info(examples[1].input_text)
+#         logging.info(examples[2].input_text)
+#         exit()
         features = self.transform_features(examples, evaluate)
 
         # for seq2seq task, transform_features func transform examples to dataset directly
@@ -66,7 +76,7 @@ class TLMPreprocessor(BasePreprocessor):
             CustomDataset = args.dataset_class
             return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, examples, mode)
         else:
-            if args.model_type in ["bart", "mbart", "marian", "bart_zh", "_zh"]:
+            if args.model_type in ["bart", "mbart", "marian", "bart_zh", "bertlm_zh"]:
                 return SimpleSummarizationDataset(encoder_tokenizer, self.args, examples, mode)
             else:
                 return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, examples, mode,)

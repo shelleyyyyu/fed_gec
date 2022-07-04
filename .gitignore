@@ -1,5 +1,6 @@
 cache_dir
 wandb
+bertlm_zh_centralized_cache
 bart_zh_centralized_cache
 data/test_edits.pickle
 nohup.out

@@ -1000,7 +1000,6 @@ class BertLMHeadModel(BertPreTrainedModel):
     def forward(
         self,
         input_ids=None,
-        decoder_input_ids=None,
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
@@ -1046,7 +1045,7 @@ class BertLMHeadModel(BertPreTrainedModel):
             >>> prediction_logits = outputs.logits
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+#         import logging as shellylog
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -1060,17 +1059,28 @@ class BertLMHeadModel(BertPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-
+#         shellylog.info(input_ids.size())
         sequence_output = outputs[0]
+#         shellylog.info(sequence_output.size())
         prediction_scores = self.cls(sequence_output)
-        lm_logits = prediction_scores
-        predictions = F.softmax(prediction_scores, dim=-1)
-        
+#         shellylog.info(prediction_scores.size())
+#         lm_logits = prediction_scores
+        lm_logits = F.softmax(prediction_scores, dim=-1)
+#         shellylog.info(predictions.size())
+#         shellylog.info(labels.size())
+#         shifted_prediction_scores = prediction_scores[:, :-1, :].contiguous()
+#         shellylog.info(shifted_prediction_scores)
+#         labels = labels[:, 1:].contiguous()
+#         loss_fct = CrossEntropyLoss()
+#         shellylog.info(labels)
+#         lm_loss = loss_fct(shifted_prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+#         shellylog.info(lm_loss)
+#         exit()
         lm_loss = None
         if labels is not None:
             loss = F.cross_entropy(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
             loss_list = F.cross_entropy(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1), reduction='none')
-            loss_list = loss_list.view(predictions.size()[0], predictions.size()[1])
+            loss_list = loss_list.view(prediction_scores.size()[0], prediction_scores.size()[1])
             mean_loss_list = []
             for losses in loss_list:
                 mean_loss_list.append(torch.mean(torch.stack([score for score in losses if score > 0.0]), dim=-1))

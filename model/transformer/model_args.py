@@ -196,4 +196,3 @@ class Seq2SeqArgs(ModelArgs):
     evaluate_during_training: bool = True
     src_lang: str = "zh"
     tgt_lang: str = "zh"
-    num_beams: int = 3

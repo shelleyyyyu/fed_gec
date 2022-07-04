@@ -80,7 +80,7 @@ if __name__ == "__main__":
                               "dataset": args.dataset,
                               "output_dir": args.output_dir,
                               "is_debug_mode": args.is_debug_mode,
-                              "num_beams": 3,
+                              "num_beams": args.num_beams,
                               "use_rl": args.use_rl,
                               })
     print('-' * 10)

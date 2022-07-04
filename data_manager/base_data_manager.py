@@ -157,6 +157,7 @@ class BaseDataManager(ABC):
             logging.info('----- Test Example -----')
             logging.info(test_data['X'][0])
             logging.info(test_data['y'][0])
+            logging.info(len(test_data['X']))
             
             data_file.close()
             partition_file.close()

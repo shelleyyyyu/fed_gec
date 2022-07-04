@@ -265,9 +265,8 @@ class Seq2SeqTrainer:
                 wrong_tag_list = [''.join(self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).split(' ')).strip() for g in inputs['input_ids']]
                 pred_tag_list = [''.join(self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).split(' ')).strip() for g in summary_ids]
 
-                if i == 0:
+                if i % 10 == 0:
                     logging.info('X: ' + wrong_tag_list[0])
-                    #logging.info('Y: ' + gold_tag_list[0])
                     logging.info('P: ' + pred_tag_list[0])
                 
                 #hyp_input_sents, ref_input_sents = [], []
@@ -389,22 +388,22 @@ class Seq2SeqTrainer:
                 "decoder_input_ids": batch["decoder_input_ids"].to(device),
                 "labels": batch["labels"].to(device),
             }
-        elif self.args.model_type in ["bert_lm_zh", "roberta_lm_zh"]:
-            lm_labels = batch[1]
-            lm_labels_masked = lm_labels.clone()
-            lm_labels_masked[lm_labels_masked == self.decoder_tokenizer.pad_token_id] = -100
+        elif self.args.model_type in ["bertlm_zh", "robertalm_zh"]:
+            pad_token_id = self.encoder_tokenizer.pad_token_id
+            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
+            lm_labels = y.clone()
+            lm_labels[y == pad_token_id] = -100
             inputs = {
-                "input_ids": batch[0].to(device),
-                "decoder_input_ids": lm_labels.to(device),
-                "labels": lm_labels_masked.to(device),
-            } 
+                "input_ids": source_ids.to(device),
+                "attention_mask": source_mask.to(device),
+                "labels": lm_labels.to(device),
+            }
         elif self.args.model_type in ["bart_zh"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
             source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
             y_ids = y[:, :-1].contiguous()
             lm_labels = y[:, 1:].clone()
             lm_labels[y[:, 1:] == pad_token_id] = -100
-            
             inputs = {
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),
