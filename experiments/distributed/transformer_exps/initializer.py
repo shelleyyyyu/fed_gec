@@ -91,7 +91,7 @@ def create_model(args, formulation="classification"):
         args.model_type]
     
     config = config_class.from_pretrained(args.model_name, **args.config, cache_dir=args.model_type+'_distributed_cache')
-    if args.model_type == "bert_lm_zh" or args.model_type == "roberta_lm_zh":
+    if args.model_type == "bertlm_zh" or args.model_type == "robertalm_zh":
         config.is_decoder = True
     
     if formulation != "seq2seq":

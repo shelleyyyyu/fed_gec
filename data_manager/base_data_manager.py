@@ -378,7 +378,7 @@ class BaseDataManager(ABC):
         """
         args = self.args
         model_args = self.model_args
-
+        logging.info(model_args.cache_dir)
         if not os.path.exists(model_args.cache_dir):
             os.mkdir(model_args.cache_dir)
         cached_features_file = os.path.join(

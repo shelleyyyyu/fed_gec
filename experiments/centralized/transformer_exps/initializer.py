@@ -69,7 +69,7 @@ def create_model(args, formulation="classification"):
         "seq2seq": {
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
             "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
-            "t5_zh": (T5Config, T5ForConditionalGeneration, BertTokenizer),
+            "t5_zh": (T5Config, T5ForConditionalGeneration, T5Tokenizer),
             "bertlm_zh": (BertConfig, BertLMHeadModel, BertTokenizer),
             "robertalm_zh": (RobertaConfig, RobertaForCausalLM, BertTokenizer),
         }

@@ -264,10 +264,6 @@ class Seq2SeqTrainer:
                                                   max_length=self.args.max_seq_length, early_stopping=True)
                 wrong_tag_list = [''.join(self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).split(' ')).strip() for g in inputs['input_ids']]
                 pred_tag_list = [''.join(self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).split(' ')).strip() for g in summary_ids]
-
-                if i % 10 == 0:
-                    logging.info('X: ' + wrong_tag_list[0])
-                    logging.info('P: ' + pred_tag_list[0])
                 
                 #hyp_input_sents, ref_input_sents = [], []
                 #for j in range(len(wrong_tag_list)):
@@ -291,11 +287,10 @@ class Seq2SeqTrainer:
                         source_sentences.append(self.test_edits_dict[sent][0])
                         #gold_edits = [self.test_edits_dict[sent][1] for sent in wrong_tag_list]
                         gold_edits.append(self.test_edits_dict[sent][1])
-                    else:
-                        logging.info('BIG WARNING FOR EVALUATION: Check ./training/ss_transformer_trainer.py line 296')
-                        logging.info(sent)
-                        logging.info('='*10)
-                #logging.info(len(system_sentences))
+                    #else:
+                        #logging.info('BIG WARNING FOR EVALUATION: Check ./training/ss_transformer_trainer.py line 296')
+                        #logging.info(sent)
+                        #logging.info('='*10)
 
                 assert len(system_sentences) == len(source_sentences) == len(gold_edits)
                 
@@ -308,6 +303,14 @@ class Seq2SeqTrainer:
                                                               self.max_unchanged_words, self.beta, 
                                                               self.ignore_whitespace_casing, self.verbose, 
                                                               self.very_verbose)
+                if i == 0:
+                    for num in range(len(wrong_tag_list)):
+                        logging.info('X: ' + wrong_tag_list[num])
+                        logging.info('P: ' + pred_tag_list[num])
+                        logging.info('-'*15)
+                    logging.info('precision: %.4f' %(p))
+                    logging.info('recall: %.4f' %(r))
+                    logging.info('f0.5: %.4f' %(f05))
 
                 f0_5_score += f05
                 precision_score += p
@@ -391,8 +394,14 @@ class Seq2SeqTrainer:
         elif self.args.model_type in ["bertlm_zh", "robertalm_zh"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
             source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
-            lm_labels = y.clone()
-            lm_labels[y == pad_token_id] = -100
+            #lm_labels = y.clone()
+            #lm_labels[y == pad_token_id] = -100
+            
+            source_ids = source_ids[:, :-1].contiguous()
+            source_mask = source_mask[:, :-1].contiguous()
+            lm_labels = y[:, 1:].clone()
+            lm_labels[y[:, 1:] == pad_token_id] = -100
+            
             inputs = {
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),
