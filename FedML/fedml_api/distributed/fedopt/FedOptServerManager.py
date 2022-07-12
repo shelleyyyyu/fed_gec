@@ -37,8 +37,8 @@ class FedOptServerManager(ServerManager):
         
         # For RL
         self.build_state = BuildState()
-        self.policy = PolicyNet(16, 4, hidden_sizes=(128, 64))
-        self.critic = CriticNet(16, 1, hidden_sizes=(128, 64))
+        self.policy = PolicyNet(4, 4, hidden_sizes=(128, 64))
+        self.critic = CriticNet(4, 1, hidden_sizes=(128, 64))
         
         self.running_reward = 0.0
         self.ep_reward = 0.0
@@ -73,14 +73,15 @@ class FedOptServerManager(ServerManager):
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)     
         train_loss_result = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_LOSS)
-        train_f0_5_result = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_F0_5)
-        train_recall_result = msg_params.get(MyMessage.MSG_ARG_KEY_PRECISION)
-        train_precision_result = msg_params.get(MyMessage.MSG_ARG_KEY_RECALL)
+        #train_f0_5_result = msg_params.get(MyMessage.MSG_ARG_KEY_TRAIN_F0_5)
+        #train_recall_result = msg_params.get(MyMessage.MSG_ARG_KEY_PRECISION)
+        #train_precision_result = msg_params.get(MyMessage.MSG_ARG_KEY_RECALL)
         
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
-        self.aggregator.add_local_observations(sender_id - 1, train_loss_result, train_f0_5_result, train_precision_result, train_recall_result)
+        self.aggregator.add_local_observations(sender_id - 1, train_loss_result)
+        #, train_f0_5_result, train_precision_result, train_recall_result)
         b_all_observed = self.aggregator.check_whether_all_observed()
         logging.info("b_all_observed = " + str(b_all_observed))
         logging.info('sender_id: %s'%(str(sender_id)))
@@ -124,12 +125,12 @@ class FedOptServerManager(ServerManager):
                 
             #TODO: HERE NEED TO DECIDE THE NEXT AUGMENT TYPE(CLIENT)
             
-            loss_dict, f0_5_dict, precision_dict, recall_dict = self.aggregator.get_local_observations()
+            loss_dict = self.aggregator.get_local_observations()
             #loss_dict['valid'] = result['eval_loss']
             #f0_5_dict['valid'] = result['f0_5_score']
             #precision_dict['valid'] = result['precision_score']
             #recall_dict['valid'] = result['recall_score']
-            cur_learning_state = self.build_state.build(loss_dict, f0_5_dict, precision_dict, recall_dict)
+            cur_learning_state = self.build_state.build(loss_dict)
             
             # PolicyNet
             action_prob = self.policy(cur_learning_state) #, action_percentages

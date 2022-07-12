@@ -11,7 +11,7 @@ from tokenizers.processors import BertProcessing
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
-from transformers.modeling_bart import shift_tokens_right
+from modeling_transformers.modeling_bart import shift_tokens_right
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +148,7 @@ def preprocess_data_t5_zh(data):
         "source_ids": input_ids["input_ids"].squeeze(),
         "source_mask": input_ids["attention_mask"].squeeze(),
         "target_ids": target_ids["input_ids"].squeeze(),
+        "target_mask": target_ids["attention_mask"].squeeze(),
     }
 
 def preprocess_data_bertlm_zh(data):

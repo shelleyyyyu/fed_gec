@@ -4,6 +4,8 @@ test_anno/
 bertlm_zh_centralized_cache
 bart_zh_centralized_cache
 data/test_edits.pickle
+bart_zh_distributed_cache
+t5_zh_centralized_cache
 nohup.out
 *.pyc
 FedOPT_nlpcc_output

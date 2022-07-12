@@ -27,9 +27,11 @@ from operator import itemgetter
 from evaluation.e_modules.tokenizer import Tokenizer as EvalTokenizer
 from evaluation.e_modules.annotator import Annotator as EvalAnnotator
 from evaluation.compare_m2_for_evaluation import calculate_score
+import evaluation.m2score.levenshtein as levenshtein
+import pkuseg
 
 class Seq2SeqRLTrainer:
-    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None):
+    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None, train_edits_dict=None, test_edits_dict=None):
         self.args = args
         self.device = device
 
@@ -50,6 +52,16 @@ class Seq2SeqRLTrainer:
         eval_tokenizer = EvalTokenizer('word', self.device)
         eval_annotator = EvalAnnotator.create_default('word', 'first')
         self.evaluator = Evaluator(eval_tokenizer, eval_annotator)
+        
+        self.train_edits_dict = train_edits_dict
+        self.test_edits_dict = test_edits_dict
+        
+        self.max_unchanged_words=2
+        self.beta = 0.5
+        self.ignore_whitespace_casing= False
+        self.verbose = False
+        self.very_verbose = False
+        self.seg = pkuseg.pkuseg()
         
 
     def set_data(self, train_dl, test_dl=None):
@@ -174,28 +186,56 @@ class Seq2SeqRLTrainer:
                 if epoch == (args.epochs-1):
                     loss_list = outputs[1]
                     train_data_loss_list.extend(loss_list)
+                    
+                    summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
+                                                  max_length=self.args.max_seq_length, early_stopping=True)
+                    
                     input_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
                                                                 clean_up_tokenization_spaces=True).strip() 
                                   for g in inputs['input_ids']]
-                    summary_ids = self.model.generate(inputs['input_ids'], num_beams=self.args.num_beams,
-                                                  max_length=self.args.max_seq_length, early_stopping=True)
                     predict_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
                                                                   clean_up_tokenization_spaces=True).strip() 
                                     for g in summary_ids]
-                    output_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, 
-                                                                 clean_up_tokenization_spaces=True).strip() 
-                                   for g in inputs['decoder_input_ids']]
-                    hyp_input_sents, ref_input_sents = [], []
-                    for i in range(len(input_list)):
-                        hyp_input_sents.append([input_list[i], predict_list[i]])
-                        ref_input_sents.append([input_list[i], output_list[i]])
-                    hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
-                    ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
-                    result = calculate_score(hyp_annotations, ref_annotations)
-                    train_data_f0_5 += result['f0_5']
-                    train_data_recall += result['recall']
-                    train_data_precision += result['precision']
                     train_data_list.extend(input_list)
+                    
+#                     hyp_input_sents, ref_input_sents = [], []
+#                     for i in range(len(input_list)):
+#                         hyp_input_sents.append([input_list[i], predict_list[i]])
+#                         #ref_input_sents.append([input_list[i], output_list[i]])
+#                     hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
+#                     logging.info(hyp_annotations)
+#                     #ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
+#                     result = calculate_score(hyp_annotations, hyp_annotations)
+#                     logging.info(result)
+#                     exit()
+#                     train_data_f0_5 += result['f0_5']
+#                     train_data_recall += result['recall']
+#                     train_data_precision += result['precision']
+#                     train_data_list.extend(input_list)
+                    
+#                     system_sentences, source_sentences, gold_edits = [], [], []
+#                     for num in range(len(pred_tag_list)):
+#                         sent = wrong_tag_list[num]
+#                         if sent in self.train_edits_dict:
+#                             system_sentences.append(' '.join(self.seg.cut(pred_tag_list[num])))
+#                             source_sentences.append(self.test_edits_dict[sent][0])
+#                             gold_edits.append(self.test_edits_dict[sent][1])
+#                         else:
+#                             logging.info('BIG WARNING FOR EVALUATION: Check ./training/ss_transformer_trainer.py line 217')
+#                             logging.info(sent)
+#                             logging.info('='*10)
+
+#                     assert len(system_sentences) == len(source_sentences) == len(gold_edits)
+
+#                     p, r, f05 = levenshtein.batch_multi_pre_rec_f1(system_sentences, source_sentences, gold_edits,
+#                                                                   self.max_unchanged_words, self.beta, 
+#                                                                   self.ignore_whitespace_casing, self.verbose, 
+#                                                                   self.very_verbose)
+
+#                     train_data_f0_5 += f05
+#                     train_data_recall += r
+#                     train_data_precision += p
+#                     train_data_list.extend(input_list)
 
                 
                 if args.n_gpu > 1:
@@ -243,7 +283,7 @@ class Seq2SeqRLTrainer:
                         logging.info(results)
             
 
-        return global_step, tr_loss / global_step, train_data_loss_list, train_data_list, train_data_f0_5 / global_step, train_data_recall / global_step, train_data_precision / global_step
+        return global_step, tr_loss / global_step, train_data_loss_list, train_data_list#, train_data_f0_5 / global_step, train_data_recall / global_step, train_data_precision / global_step
 
     def eval_model(self, epoch=0, global_step=0, device=None):
         if not device:
@@ -285,24 +325,51 @@ class Seq2SeqRLTrainer:
                                                   max_length=self.args.max_seq_length, early_stopping=True)
                 wrong_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['input_ids']]
                 pred_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in summary_ids]
-                gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
+                #gold_tag_list = [self.decoder_tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip() for g in inputs['decoder_input_ids']]
 
                 if i == 0:
                     logging.info('----- Evaluation Examples -----')
                     logging.info(wrong_tag_list[0])
-                    logging.info(gold_tag_list[0])
+                    #logging.info(gold_tag_list[0])
                     logging.info(pred_tag_list[0])
             
-                hyp_input_sents, ref_input_sents = [], []
-                for j in range(len(wrong_tag_list)):
-                    hyp_input_sents.append([wrong_tag_list[j], pred_tag_list[j]])
-                    ref_input_sents.append([wrong_tag_list[j], gold_tag_list[j]])
-                hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
-                ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
-                result = calculate_score(hyp_annotations, ref_annotations)
-                f0_5_score += result['f0_5']
-                precision_score += result['precision']
-                recall_score += result['recall']
+                #hyp_input_sents, ref_input_sents = [], []
+                #for j in range(len(wrong_tag_list)):
+                #    hyp_input_sents.append([wrong_tag_list[j], pred_tag_list[j]])
+                #    ref_input_sents.append([wrong_tag_list[j], gold_tag_list[j]])
+                #hyp_annotations = self.evaluator.get_edits(hyp_input_sents, batch_size=self.args.train_batch_size)
+                #ref_annotations = self.evaluator.get_edits(ref_input_sents, batch_size=self.args.train_batch_size)
+                #result = calculate_score(hyp_annotations, ref_annotations)
+                #f0_5_score += result['f0_5']
+                #precision_score += result['precision']
+                #recall_score += result['recall']
+                
+                system_sentences, source_sentences, gold_edits = [], [], []
+                #logging.info(len(pred_tag_list))
+                for num in range(len(pred_tag_list)):
+                    sent = wrong_tag_list[num]
+                    if sent in self.test_edits_dict:
+                        #system_sentences = [' '.join(self.seg.cut(pred)) for pred in pred_tag_list]
+                        system_sentences.append(' '.join(self.seg.cut(pred_tag_list[num])))
+                        #source_sentences = [self.test_edits_dict[sent][0] for sent in wrong_tag_list]
+                        source_sentences.append(self.test_edits_dict[sent][0])
+                        #gold_edits = [self.test_edits_dict[sent][1] for sent in wrong_tag_list]
+                        gold_edits.append(self.test_edits_dict[sent][1])
+                    else:
+                        logging.info('BIG WARNING FOR EVALUATION: Check ./training/ss_transformer_trainer.py line 296')
+                        logging.info(sent)
+                        logging.info('='*10)
+                
+                assert len(system_sentences) == len(source_sentences) == len(gold_edits)
+                
+                p, r, f05 = levenshtein.batch_multi_pre_rec_f1(system_sentences, source_sentences, gold_edits,
+                                                              self.max_unchanged_words, self.beta, 
+                                                              self.ignore_whitespace_casing, self.verbose, 
+                                                              self.very_verbose)
+                f0_5_score += f05
+                precision_score += p
+                recall_score += r
+
                 # logits = output[0]
                 # loss_fct = CrossEntropyLoss()
                 # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))

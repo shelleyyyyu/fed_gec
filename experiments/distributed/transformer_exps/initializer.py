@@ -26,8 +26,9 @@ from modeling_transformers.configuration_bart import BartConfig
 
 # T5
 from modeling_transformers.modeling_t5 import T5ForConditionalGeneration
+from modeling_transformers.modeling_mt5 import MT5ForConditionalGeneration
 from modeling_transformers.tokenization_t5 import T5Tokenizer
-from modeling_transformers.configuration_t5 import T5Config
+from modeling_transformers.configuration_mt5 import MT5Config
 
 # BERTLM
 from modeling_transformers.modeling_bert import BertLMHeadModel
@@ -83,6 +84,7 @@ def create_model(args, formulation="classification"):
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
             "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
             "t5_zh": (T5Config, T5ForConditionalGeneration, BertTokenizer),
+            "mt5_zh": (MT5Config, MT5ForConditionalGeneration, BertTokenizer),
             "bert_lm_zh": (BertConfig, BertLMHeadModel, BertTokenizer),
             "roberta_lm_zh": (RobertaConfig, RobertaForCausalLM, BertTokenizer),
         }
@@ -94,6 +96,8 @@ def create_model(args, formulation="classification"):
     if args.model_type == "bertlm_zh" or args.model_type == "robertalm_zh":
         config.is_decoder = True
     
+    model = model_class.from_pretrained(args.model_name, config=config, cache_dir=args.model_type+'_distributed_cache')
+
     if formulation != "seq2seq":
         tokenizer = tokenizer_class.from_pretrained(
             args.model_name, do_lower_case=args.do_lower_case, cache_dir=args.model_type+'_distributed_cache')
@@ -109,8 +113,6 @@ def create_model(args, formulation="classification"):
         tokenizer[0] = pretrain_tokenizer
         tokenizer[1] = pretrain_tokenizer
         
-
-    model = model_class.from_pretrained(args.model_name, config=config, cache_dir=args.model_type+'_distributed_cache')
     
     logging.info('Pretrain Model Name: %s' %(str(args.model_name)))
     logging.info('Config Class: %s' %(str(config_class)))

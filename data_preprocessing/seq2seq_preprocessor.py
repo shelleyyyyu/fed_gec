@@ -40,7 +40,7 @@ class TLMPreprocessor(BasePreprocessor):
 #         logging.info(examples[0].target_text)
 #         logging.info(examples[1].input_text)
 #         logging.info(examples[2].input_text)
-        random.shuffle(examples)
+#        random.shuffle(examples)
 #         logging.info(examples[0].input_text)
 #         logging.info(examples[0].target_text)
 #         logging.info(examples[1].input_text)
@@ -76,7 +76,7 @@ class TLMPreprocessor(BasePreprocessor):
             CustomDataset = args.dataset_class
             return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, examples, mode)
         else:
-            if args.model_type in ["bart", "mbart", "marian", "bart_zh", "bertlm_zh"]:
+            if args.model_type in ["bart", "mbart", "marian", "bart_zh", "bertlm_zh", "t5_zh"]:
                 return SimpleSummarizationDataset(encoder_tokenizer, self.args, examples, mode)
             else:
                 return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, examples, mode,)

@@ -21,8 +21,8 @@ class FedTransformerTrainer(ModelTrainer):
         logging.info("Client(%d)" % self.id + ":| Local Train Data Size = %d" % (len(train_data)))
         #logging.info(self.model_trainer) #training.ss_transformer_trainer.Seq2SeqTrainer
         self.model_trainer.train_dl = train_data
-        _, loss, train_data_loss_list, train_data_list, f0_5, recall, precision = self.model_trainer.train_model(device=device)
-        return train_data_loss_list, train_data_list, loss, f0_5, recall, precision
+        _, loss, train_data_loss_list, train_data_list = self.model_trainer.train_model(device=device)
+        return train_data_loss_list, train_data_list, loss
 
     def test(self, test_data, device, args=None):
         pass

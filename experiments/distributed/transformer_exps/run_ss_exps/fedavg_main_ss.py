@@ -1,7 +1,7 @@
 import os
 import socket
 import sys
-
+import pickle
 import psutil
 import setproctitle
 import torch
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../")))
 from training.fed_trainer_transformer import FedTransformerTrainer
 from data_preprocessing.seq2seq_preprocessor import TLMPreprocessor
 #from training.ss_transformer_trainer import Seq2SeqTrainer
-from training.ss_transformer_trainer_rl import Seq2SeqRLTrainer as Seq2SeqTrainer
+from training.ss_transformer_trainer_rl import Seq2SeqRLTrainer
 from model.transformer.model_args import Seq2SeqArgs
 from data_manager.seq2seq_data_manager import Seq2SeqDataManager
 from data_manager.base_data_manager import BaseDataManager
@@ -130,11 +130,19 @@ if __name__ == "__main__":
     dm = Seq2SeqDataManager(args, model_args, preprocessor, process_id, args.client_num_per_round)
     train_data_num, train_data_global, test_data_global, train_data_local_num_dict, \
     train_data_local_dict, test_data_local_dict, num_clients = dm.load_federated_data(process_id=process_id)
+    
+    test_edits_file = open("/data/yumenghsuan/test_anno/test_edits.pickle",'rb')
+    test_edits_dict = pickle.load(test_edits_file)
+    logging.info('Test Edits loaded: %d sents' %len(test_edits_dict))
+    
+    train_edits_file = open("/data/yumenghsuan/train_anno/train_edits.pickle",'rb')
+    train_edits_dict = pickle.load(train_edits_file)
+    logging.info('Test Edits loaded: %d sents' %len(train_edits_dict))
 
     print('Get Seq2SeqTrainer')
     # trainer
-    client_trainer = Seq2SeqTrainer(
-        model_args, device, client_model, None, None, tokenizer, preprocessor)
+    client_trainer = Seq2SeqRLTrainer(
+        model_args, device, client_model, None, None, tokenizer, preprocessor, train_edits_dict=train_edits_dict, test_edits_dict=test_edits_dict)
     fed_trainer = FedTransformerTrainer(client_trainer, client_model, preprocessor)
 
     # print('train_data_num', train_data_num)

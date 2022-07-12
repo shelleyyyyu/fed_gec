@@ -3,14 +3,10 @@ import logging
 import numpy as np
 import torch
 from transformers import (
-    BertConfig,
-    BertTokenizer,
-    BertForTokenClassification,
-    BertForQuestionAnswering,
-    DistilBertConfig,
-    DistilBertTokenizer,
-    DistilBertForTokenClassification,
-    DistilBertForQuestionAnswering,
+#     DistilBertConfig,
+#     DistilBertTokenizer,
+#     DistilBertForTokenClassification,
+#     DistilBertForQuestionAnswering,
 #     BartConfig, 
 #     BartForConditionalGeneration, 
 #     BartTokenizer,
@@ -21,27 +17,32 @@ from transformers import (
 #     RobertaForCausalLM,
 #     RobertaTokenizer,
 #     RobertaConfig
+    T5ForConditionalGeneration,
+    T5Tokenizer,
+    T5Config
 )
+
+from transformers import AutoTokenizer
 
 # BART
 from modeling_transformers.modeling_bart import BartForConditionalGeneration
 from modeling_transformers.tokenization_bart import BartTokenizer
 from modeling_transformers.configuration_bart import BartConfig
 
-# T5
-from modeling_transformers.modeling_t5 import T5ForConditionalGeneration
-from modeling_transformers.tokenization_t5 import T5Tokenizer
-from modeling_transformers.configuration_t5 import T5Config
+# # T5
+# from modeling_transformers.modeling_t5 import T5ForConditionalGeneration
+# from modeling_transformers.tokenization_t5 import T5Tokenizer
+# from modeling_transformers.configuration_t5 import T5Config
 
-# BERTLM
-from modeling_transformers.modeling_bert import BertLMHeadModel
+# BERT
+from modeling_transformers.modeling_bert import BertLMHeadModel, BertForTokenClassification, BertForQuestionAnswering
 from modeling_transformers.tokenization_bert import BertTokenizer
 from modeling_transformers.configuration_bert import BertConfig
 
-#RobertaLM
-from modeling_transformers.modeling_roberta import RobertaForCausalLM
-from modeling_transformers.tokenization_roberta import RobertaTokenizer
-from modeling_transformers.configuration_roberta import RobertaConfig
+# BERT
+from modeling_transformers.modeling_distilbert import DistilBertForTokenClassification, DistilBertForQuestionAnswering
+from modeling_transformers.tokenization_distilbert import DistilBertTokenizer
+from modeling_transformers.configuration_distilbert import DistilBertConfig
 
 from model.transformer.bert_model import BertForSequenceClassification
 from model.transformer.distilbert_model import DistilBertForSequenceClassification
@@ -69,9 +70,8 @@ def create_model(args, formulation="classification"):
         "seq2seq": {
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
             "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
-            "t5_zh": (T5Config, T5ForConditionalGeneration, T5Tokenizer),
+            "t5_zh": (T5Config, T5ForConditionalGeneration, AutoTokenizer),
             "bertlm_zh": (BertConfig, BertLMHeadModel, BertTokenizer),
-            "robertalm_zh": (RobertaConfig, RobertaForCausalLM, BertTokenizer),
         }
     }
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
@@ -89,12 +89,13 @@ def create_model(args, formulation="classification"):
     else:
         tokenizer = [None, None]
         pretrain_tokenizer = tokenizer_class.from_pretrained(args.model_name, cache_dir=args.model_type+'_centralized_cache')
-        logging.info(len(pretrain_tokenizer))
-        logging.info(len(ADD_TOKEN_LIST))
-        num_added_toks = pretrain_tokenizer.add_tokens(ADD_TOKEN_LIST)
-        logging.info('Added %d tokens', num_added_toks)
-        logging.info(len(pretrain_tokenizer))
-        model.resize_token_embeddings(len(pretrain_tokenizer))
+        if args.model_type == "bart_zh":
+            logging.info(len(pretrain_tokenizer))
+            logging.info(len(ADD_TOKEN_LIST))
+            num_added_toks = pretrain_tokenizer.add_tokens(ADD_TOKEN_LIST)
+            logging.info('Added %d tokens', num_added_toks)
+            logging.info(len(pretrain_tokenizer))
+            model.resize_token_embeddings(len(pretrain_tokenizer))
         tokenizer[0] = pretrain_tokenizer
         tokenizer[1]= pretrain_tokenizer
 

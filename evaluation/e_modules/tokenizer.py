@@ -1,8 +1,9 @@
-from ltp import LTP
+# from ltp import LTP
 from typing import List
 from pypinyin import pinyin, Style, lazy_pinyin
 import torch
 import logging
+import pkuseg
 
 class Tokenizer:
     """
@@ -19,9 +20,10 @@ class Tokenizer:
         :param mode: 分词模式，可选级别：字级别（char）、词级别（word）
         """
         self.ltp = None 
-        if granularity == "word":
-            self.ltp = LTP(device=torch.device(device) if torch.cuda.is_available() else torch.device("cpu"))
-            self.ltp.add_words(words=["[缺失成分]"], max_window=6)
+        self.pkuseg = pkuseg.pkuseg(postag=True)
+#         if granularity == "word":
+#             self.ltp = LTP(device=torch.device(device) if torch.cuda.is_available() else torch.device("cpu"))
+#             self.ltp.add_words(words=["[缺失成分]"], max_window=6)
         self.segmented = segmented
         self.granularity = granularity
         if self.granularity == "word":
@@ -70,16 +72,28 @@ class Tokenizer:
         :param input_strings: 需要分词的字符串
         :return: 分词结果
         """
-        if self.segmented:
-            seg, hidden = self.ltp.seg([input_string.split(" ") for input_string in input_strings], is_preseged=True)
-        else:
-            seg, hidden = self.ltp.seg(input_strings)
-        pos = self.ltp.pos(hidden)
-        result = []
-        for s, p in zip(seg, pos):
+#         if self.segmented:
+#             seg, hidden = self.ltp.seg([input_string.split(" ") for input_string in input_strings], is_preseged=True)
+#         else:
+#             seg, hidden = self.ltp.seg(input_strings)
+#         pos = self.ltp.pos(hidden)
+#         result = []
+#         for s, p in zip(seg, pos):
+#             pinyin = [lazy_pinyin(word) for word in s]
+#             result.append(list(zip(s, p, pinyin)))
+        
+        pkuseg_result = []
+        for string in input_strings:
+            pkuseg_result.append(self.pkuseg.cut(string))
+        
+        result2 = []
+        for re in pkuseg_result:
+            s = [r[0] for r in re]
+            p = [r[1] for r in re]
             pinyin = [lazy_pinyin(word) for word in s]
-            result.append(list(zip(s, p, pinyin)))
-        return result
+            result2.append(list(zip(s, p, pinyin)))
+        
+        return result2#result
 
 if __name__ == "__main__":
     tokenizer = Tokenizer("word")

@@ -91,10 +91,10 @@ class FedOptTrainer(object):
     def train(self, round_idx = None):
         self.args.round_idx = round_idx
         logging.info('Train round %s: len of examples: %d' %(str(round_idx), len(self.train_local.examples)))
-        train_data_loss_list, train_data_list, loss, f0_5, recall, precision = self.trainer.train(self.train_local, self.device, self.args)
+        train_data_loss_list, train_data_list, loss = self.trainer.train(self.train_local, self.device, self.args)
         weights = self.trainer.get_model_params()
 
         # transform Tensor to list
         if self.args.is_mobile == 1:
             weights = transform_tensor_to_list(weights)
-        return weights, self.local_sample_number, train_data_loss_list, train_data_list, loss, f0_5, recall, precision
+        return weights, self.local_sample_number, train_data_loss_list, train_data_list, loss#, f0_5, recall, precision

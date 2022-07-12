@@ -63,10 +63,10 @@ class CriticNet(nn.Module):
         
         
 class BuildState():
-    def build(self, loss_dict, f0_5_dict, precision_dict, recall_dict):
+    def build(self, loss_dict):
         state = []
-        for (key, loss_value), (key, f0_5_value), (key, precision_value), (key, recall_value) in zip(loss_dict.items(), f0_5_dict.items(), precision_dict.items(), recall_dict.items()):
-            state.extend([loss_value, f0_5_value, precision_value, recall_value])
+        for key, loss_value in loss_dict.items():
+            state.extend([loss_value])
         state = torch.FloatTensor(state)
         state = state.detach()
         return state
