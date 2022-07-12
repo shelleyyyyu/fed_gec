@@ -221,7 +221,7 @@ class SimpleSummarizationDataset(Dataset):
             #preprocess_fn = preprocess_data_mbart 
             if args.model_type == "mbart":
                 preprocess_fn = preprocess_data_mbart 
-            elif args.model_type == "bart_zh" or args.model_type == "bertlm_zh":
+            elif args.model_type == "bart_zh":
                 preprocess_fn = preprocess_data_bart_zh
             elif args.model_type == "t5_zh":
                 preprocess_fn = preprocess_data_t5_zh
