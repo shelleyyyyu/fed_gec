@@ -3,23 +3,10 @@ import logging
 import numpy as np
 import torch
 from transformers import (
-#     DistilBertConfig,
-#     DistilBertTokenizer,
-#     DistilBertForTokenClassification,
-#     DistilBertForQuestionAnswering,
-#     BartConfig, 
-#     BartForConditionalGeneration, 
-#     BartTokenizer,
-#     T5ForConditionalGeneration, 
-#     T5Tokenizer,
-#     T5Config,
-#     BertLMHeadModel,
-#     RobertaForCausalLM,
-#     RobertaTokenizer,
-#     RobertaConfig
     T5ForConditionalGeneration,
     T5Tokenizer,
-    T5Config
+    T5Config,
+    BertForMaskedLM,
 )
 
 from transformers import AutoTokenizer
@@ -71,7 +58,7 @@ def create_model(args, formulation="classification"):
             "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
             "bart_zh": (BartConfig, BartForConditionalGeneration, BertTokenizer),
             "t5_zh": (T5Config, T5ForConditionalGeneration, AutoTokenizer),
-            "bertlm_zh": (BertConfig, BertLMHeadModel, BertTokenizer),
+            "bertlm_zh": (BertConfig, BertForMaskedLM, BertTokenizer),
         }
     }
     config_class, model_class, tokenizer_class = MODEL_CLASSES[formulation][
@@ -89,7 +76,7 @@ def create_model(args, formulation="classification"):
     else:
         tokenizer = [None, None]
         pretrain_tokenizer = tokenizer_class.from_pretrained(args.model_name, cache_dir=args.model_type+'_centralized_cache')
-        if args.model_type == "bart_zh":
+        if tokenizer_class == BertTokenizer:
             logging.info(len(pretrain_tokenizer))
             logging.info(len(ADD_TOKEN_LIST))
             num_added_toks = pretrain_tokenizer.add_tokens(ADD_TOKEN_LIST)

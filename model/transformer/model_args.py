@@ -184,7 +184,7 @@ class Seq2SeqArgs(ModelArgs):
     do_sample: bool = False
     early_stopping: bool = True
     evaluate_generated_text: bool = False
-    length_penalty: float = 1.0
+    length_penalty: float = 2.0
     max_length: int = 20
     max_steps: int = -1
     num_beams: int = 4

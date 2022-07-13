@@ -393,17 +393,15 @@ class Seq2SeqTrainer:
             }
         elif self.args.model_type in ["t5_zh"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
-            source_ids, source_mask, y, y_mask = batch["source_ids"], batch["source_mask"], batch["target_ids"], batch["target_mask"]
-            y_mask = y_mask[:, :-1].contiguous()
+            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
             y_ids = y[:, :-1].contiguous()
             lm_labels = y[:, 1:].clone()
             lm_labels[y[:, 1:] == pad_token_id] = -100
             inputs = {
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),
-                "labels": lm_labels.to(device),
                 "decoder_input_ids": y_ids.to(device),
-                "decoder_attention_mask": y_mask.to(device),
+                "labels": lm_labels.to(device),
             }
 
         elif self.args.model_type in ["bertlm_zh"]:
@@ -413,6 +411,18 @@ class Seq2SeqTrainer:
             lm_labels = y[:, 1:].clone()
             lm_labels[y[:, 1:] == pad_token_id] = -100
             
+            inputs = {
+                "input_ids": source_ids.to(device),
+                "attention_mask": source_mask.to(device),
+                "decoder_input_ids": y_ids.to(device),
+                "labels": lm_labels.to(device),
+            }
+        elif self.args.model_type in ["bart_zh"]:
+            pad_token_id = self.encoder_tokenizer.pad_token_id
+            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
+            y_ids = y[:, :-1].contiguous()
+            lm_labels = y[:, 1:].clone()
+            lm_labels[y[:, 1:] == pad_token_id] = -100
             inputs = {
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),
