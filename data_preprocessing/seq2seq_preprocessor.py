@@ -40,7 +40,7 @@ class TLMPreprocessor(BasePreprocessor):
 #         logging.info(examples[0].target_text)
 #         logging.info(examples[1].input_text)
 #         logging.info(examples[2].input_text)
-#        random.shuffle(examples)
+        random.shuffle(examples)
 #         logging.info(examples[0].input_text)
 #         logging.info(examples[0].target_text)
 #         logging.info(examples[1].input_text)

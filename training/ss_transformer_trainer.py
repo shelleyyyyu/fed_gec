@@ -29,14 +29,18 @@ from operator import itemgetter
 #from evaluation.e_modules.annotator import Annotator as EvalAnnotator
 #from evaluation.compare_m2_for_evaluation import calculate_score
 import evaluation.m2score.levenshtein as levenshtein
+from data_preprocessing.base.base_data_loader import BaseDataLoader
+
 
 class Seq2SeqTrainer:
-    def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None, test_edits_dict=None):
+    #def __init__(self, args, device, model, train_dl=None, test_dl=None, tokenizer=None, preprocessor=None, test_edits_dict=None):
+    def __init__(self, args, device, model, train_examples=None, train_features=None, train_dataset=None, test_dl=None, tokenizer=None, preprocessor=None, test_edits_dict=None):
+    
         self.args = args
         self.device = device
 
         # set data
-        self.set_data(train_dl, test_dl)
+        self.set_data(train_examples, train_features, train_dataset, test_dl)
 
         # model
         self.model = model
@@ -61,9 +65,11 @@ class Seq2SeqTrainer:
         self.very_verbose = False
         self.seg = pkuseg.pkuseg()
 
-    def set_data(self, train_dl, test_dl=None):
+    def set_data(self, train_examples, train_features, train_dataset, test_dl=None):
         # Used for fedtrainer
-        self.train_dl = train_dl
+        self.train_examples=train_examples
+        self.train_features=train_features
+        self.train_dataset=train_dataset
         self.test_dl = test_dl
 
     def train_model(self, device=None):
@@ -76,6 +82,12 @@ class Seq2SeqTrainer:
         self.model.to(device)
 
         args = self.args
+        
+        self.train_dl = BaseDataLoader(self.train_examples, self.train_features, self.train_dataset,
+                              batch_size=args.train_batch_size,
+                              num_workers=0,
+                              pin_memory=True,
+                              drop_last=False)
         
 
         no_decay = ["bias", "LayerNorm.weight"]
@@ -132,8 +144,7 @@ class Seq2SeqTrainer:
                 ]
             )
         
-        iteration_in_total = len(
-            self.train_dl) // args.gradient_accumulation_steps * args.epochs
+        iteration_in_total = len(self.train_dl) // args.gradient_accumulation_steps * args.epochs
         optimizer, scheduler = self.build_optimizer(self.model, iteration_in_total)
         # warmup_steps = math.ceil(t_total * args.warmup_ratio)
         # args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
@@ -161,10 +172,18 @@ class Seq2SeqTrainer:
             global_model = copy.deepcopy(self.model)
 
         for epoch in range(0, args.epochs):
-            
+            self.train_dl = BaseDataLoader(self.train_examples, self.train_features, self.train_dataset,
+                              batch_size=args.train_batch_size,
+                              shuffle=True,
+                              num_workers=0,
+                              pin_memory=True,
+                              drop_last=False)
             for batch_idx, batch in enumerate(self.train_dl):
                 self.model.train()
                 inputs = self._get_inputs_dict(batch)
+                if batch_idx == 0:
+                    logging.info('Check if shuffle data')
+                    logging.info(inputs['input_ids'][0])
                 
                 if args.fp16:
                     with amp.autocast():

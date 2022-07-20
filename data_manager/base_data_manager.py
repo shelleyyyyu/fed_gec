@@ -191,20 +191,20 @@ class BaseDataManager(ABC):
 
             with open(res, "wb") as handle:
                 pickle.dump((train_examples, train_features, train_dataset, test_examples, test_features, test_dataset), handle)
+        return train_examples, train_features, train_dataset, test_examples, test_features, test_dataset
+#         train_dl = BaseDataLoader(train_examples, train_features, train_dataset,
+#                               batch_size=self.train_batch_size,
+#                               num_workers=0,
+#                               pin_memory=True,
+#                               drop_last=False)
 
-        train_dl = BaseDataLoader(train_examples, train_features, train_dataset,
-                              batch_size=self.train_batch_size,
-                              num_workers=0,
-                              pin_memory=True,
-                              drop_last=False)
-
-        test_dl = BaseDataLoader(test_examples, test_features, test_dataset,
-                             batch_size=self.eval_batch_size,
-                             num_workers=0,
-                             pin_memory=True,
-                             drop_last=False)
+#         test_dl = BaseDataLoader(test_examples, test_features, test_dataset,
+#                              batch_size=self.eval_batch_size,
+#                              num_workers=0,
+#                              pin_memory=True,
+#                              drop_last=False)
         
-        return train_dl, test_dl
+#         return train_dl, test_dl
 
     def load_federated_data(self, process_id, test_cut_off=None):
         if process_id == 0:
@@ -347,7 +347,8 @@ class BaseDataManager(ABC):
                                     batch_size=self.train_batch_size,
                                     num_workers=0,
                                     pin_memory=True,
-                                    drop_last=False)
+                                    drop_last=False,
+                                    shuffle=True)
 
             test_loader = BaseDataLoader(test_examples, test_features, test_dataset,
                                     batch_size=self.eval_batch_size,

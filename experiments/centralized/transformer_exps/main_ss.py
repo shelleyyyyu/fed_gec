@@ -23,7 +23,8 @@ from model.transformer.model_args import Seq2SeqArgs
 from training.ss_transformer_trainer import Seq2SeqTrainer
 from training.ss_transformer_trainer_rl import Seq2SeqRLTrainer
 from experiments.centralized.transformer_exps.initializer import set_seed, add_centralized_args, create_model
- 
+from data_preprocessing.base.base_data_loader import BaseDataLoader
+
 
 
 if __name__ == "__main__":
@@ -96,7 +97,14 @@ if __name__ == "__main__":
     process_id = 0
     num_workers = 1
     dm = Seq2SeqDataManager(args, model_args, preprocessor)
-    train_dl, test_dl = dm.load_centralized_data() # cut_off = 1 for each client.
+    #train_dl, test_dl = dm.load_centralized_data() # cut_off = 1 for each client.
+    train_examples, train_features, train_dataset, test_examples, test_features, test_dataset = dm.load_centralized_data()
+    
+    test_dl = BaseDataLoader(test_examples, test_features, test_dataset,
+                             batch_size=args.eval_batch_size,
+                             num_workers=0,
+                             pin_memory=True,
+                             drop_last=False)
     # Create a Seq2Seq Trainer and start train
     logging.info(str(args.use_rl))
     
@@ -107,7 +115,7 @@ if __name__ == "__main__":
 
     if str(args.use_rl) == 'False':
         logging.info('Train with Seq2SeqTrainer')
-        trainer = Seq2SeqTrainer(model_args, device, model, train_dl, test_dl, tokenizer, test_edits_dict=test_edits_dict)
+        trainer = Seq2SeqTrainer(model_args, device, model, train_examples, train_features, train_dataset, test_dl, tokenizer, test_edits_dict=test_edits_dict)
         trainer.train_model()
         trainer.eval_model()
     else:
